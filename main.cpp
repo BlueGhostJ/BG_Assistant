@@ -7,6 +7,7 @@
 #include <QAction>
 #include <QProcess>
 #include <QTimer>
+#include <QMessageBox>
 #include "configform.h"
 #include "lockscreen.h"
 
@@ -19,6 +20,13 @@ int main(int argc, char *argv[])
     // 对齐原版：父进程的太极托盘图标保持不变，子进程在托盘区另挂一个「锁」图标。
     if (app.arguments().contains(QStringLiteral("superLock"))) {
         QApplication::setQuitOnLastWindowClosed(false);
+
+        // 未设置密码时提示先设置密码（防御：正常路径下父进程已校验）。
+        if (lockScreenPassword().isEmpty()) {
+            QMessageBox::information(nullptr, QStringLiteral("神隐锁屏设置"),
+                                     QStringLiteral("尚未设置解锁密码！"));
+            return 0;
+        }
 
         LockScreen lockScreen;
         lockScreen.setPassword(lockScreenPassword());
@@ -41,7 +49,7 @@ int main(int argc, char *argv[])
     }
 
     QApplication::setQuitOnLastWindowClosed(false);
-    ensureLockScreenConfig();   // 首次启动时自动创建 ini 并写入默认密码
+    ensureLockScreenConfig();   // 首次启动时创建「无密码」的 ini 文件
 
     // 栈对象：生命周期覆盖整个 exec()，退出时自动释放，不会泄漏
     QMenu trayMenu;
@@ -59,6 +67,12 @@ int main(int argc, char *argv[])
 
     QAction *lockScreenAction = new QAction("遮屏", &trayMenu);
     QObject::connect(lockScreenAction, &QAction::triggered, []() {
+        // 未设置密码时提示先设置密码（对齐原版），不启动锁屏。
+        if (lockScreenPassword().isEmpty()) {
+            QMessageBox::information(nullptr, QStringLiteral("神隐锁屏设置"),
+                                     QStringLiteral("尚未设置解锁密码！"));
+            return;
+        }
         // 启动锁屏子进程：父进程太极图标不变，锁屏子进程自带锁图标托盘。
         QProcess::startDetached(QApplication::applicationFilePath(),
                                 QStringList() << QStringLiteral("superLock"));

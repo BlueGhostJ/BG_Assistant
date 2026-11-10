@@ -93,10 +93,9 @@ QString lockScreenPassword()
     QSettings ini(lockScreenIniPath(), QSettings::IniFormat);
     const QString stored = ini.value(QStringLiteral("LockScreen/Password")).toString();
     if (stored.isEmpty())
-        return QStringLiteral("a");   // 默认密码，兼容此前写死的 "a"
+        return QString();   // 未设置密码
 
-    const QString plain = aesDecryptBase64(stored, lockScreenAesKey());
-    return plain.isEmpty() ? QStringLiteral("a") : plain;
+    return aesDecryptBase64(stored, lockScreenAesKey());
 }
 
 void setLockScreenPassword(const QString &plain)
@@ -108,11 +107,11 @@ void setLockScreenPassword(const QString &plain)
 
 void ensureLockScreenConfig()
 {
-    // 首次启动时 ini 尚不存在：写入默认密码，QSettings::setValue 会自动创建文件。
+    // 首次启动时 ini 尚不存在：创建「无密码」的 ini 文件（密码键为空，表示尚未设置密码）。
+    // 未设置密码时，锁屏会提示先设置密码（对齐原版逻辑，不再写入默认密码）。
     QSettings ini(lockScreenIniPath(), QSettings::IniFormat);
-    if (ini.value(QStringLiteral("LockScreen/Password")).toString().isEmpty())
-        ini.setValue(QStringLiteral("LockScreen/Password"),
-                     aesEncryptBase64(QStringLiteral("a"), lockScreenAesKey()));
+    if (!ini.contains(QStringLiteral("LockScreen/Password")))
+        ini.setValue(QStringLiteral("LockScreen/Password"), QString());
 }
 
 bool lockScreenKeepScreenOn()

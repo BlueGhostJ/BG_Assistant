@@ -8,7 +8,7 @@ class QKeyEvent;
 class QPaintEvent;
 
 // 从 exe 同目录的 BGAssistant.ini 读取锁屏密码（AES 加密存储，不写注册表）。
-// 未配置时返回默认密码 "a"。
+// 未设置密码时返回空串，锁屏会提示先设置密码。
 QString lockScreenPassword();
 
 // 设置锁屏密码：AES 加密后写入 ini。
@@ -18,7 +18,7 @@ void setLockScreenPassword(const QString &plain);
 bool lockScreenKeepScreenOn();
 void setLockScreenKeepScreenOn(bool on);
 
-// 确保配置 ini 存在：无密码时写入默认密码（用于首次启动自动创建 ini）。
+// 确保配置 ini 存在：首次启动创建「无密码」的 ini 文件（密码键为空）。
 void ensureLockScreenConfig();
 
 // 神隐锁屏：全屏近乎透明窗口（alpha=1，肉眼不可见），屏幕上不显示任何锁屏组件，
