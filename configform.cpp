@@ -123,7 +123,12 @@ void ConfigForm::applyPassword()
     const QString newPwd = ui->newPasswordEdit->text();
     const QString confirmPwd = ui->confirmPasswordEdit->text();
 
-    // 校验顺序对齐原易语言版：先比对两次新密码，再校验原密码。
+    // 校验顺序对齐原易语言版：先查密码为空，再比对两次新密码，最后校验原密码。
+    if (newPwd.isEmpty()) {
+        QMessageBox::warning(this, QStringLiteral("神隐锁屏设置"),
+                             QStringLiteral("锁屏密码不能为空！"));
+        return;
+    }
     if (newPwd != confirmPwd) {
         QMessageBox::warning(this, QStringLiteral("神隐锁屏设置"),
                              QStringLiteral("锁屏密码与确认密码不一致！"));
