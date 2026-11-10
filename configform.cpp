@@ -101,6 +101,16 @@ void ConfigForm::loadSettings()
     // 锁屏期间保持屏幕常亮：纯 ini 配置，与平台无关
     const QSignalBlocker blocker2(ui->keepScreenOnCheckBox);
     ui->keepScreenOnCheckBox->setChecked(lockScreenKeepScreenOn());
+
+    updatePasswordVisibility();
+}
+
+void ConfigForm::updatePasswordVisibility()
+{
+    // 尚未设置密码（首次设置）时隐藏「原密码」输入项；已设置则显示。
+    const bool hasPassword = !lockScreenPassword().isEmpty();
+    ui->oldPasswordEdit->setVisible(hasPassword);
+    ui->oldPasswordLabel->setVisible(hasPassword);
 }
 
 void ConfigForm::applyAutoStart(bool enabled)
@@ -119,7 +129,6 @@ void ConfigForm::applyKeepScreenOn(bool enabled)
 
 void ConfigForm::applyPassword()
 {
-    const QString oldPwd = ui->oldPasswordEdit->text();
     const QString newPwd = ui->newPasswordEdit->text();
     const QString confirmPwd = ui->confirmPasswordEdit->text();
 
@@ -134,7 +143,9 @@ void ConfigForm::applyPassword()
                              QStringLiteral("锁屏密码与确认密码不一致！"));
         return;
     }
-    if (oldPwd != lockScreenPassword()) {
+    // 已设置密码时才校验原密码；首次设置（尚无密码）时跳过原密码校验。
+    if (!lockScreenPassword().isEmpty() &&
+        ui->oldPasswordEdit->text() != lockScreenPassword()) {
         QMessageBox::warning(this, QStringLiteral("神隐锁屏设置"),
                              QStringLiteral("原锁屏密码错误！"));
         return;
@@ -144,6 +155,7 @@ void ConfigForm::applyPassword()
     ui->oldPasswordEdit->clear();
     ui->newPasswordEdit->clear();
     ui->confirmPasswordEdit->clear();
+    updatePasswordVisibility();   // 保存后已有密码，显示原密码输入项
     QMessageBox::information(this, QStringLiteral("神隐锁屏设置"),
                              QStringLiteral("锁屏密码已保存！"));
 }

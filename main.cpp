@@ -67,10 +67,12 @@ int main(int argc, char *argv[])
 
     QAction *lockScreenAction = new QAction("遮屏", &trayMenu);
     QObject::connect(lockScreenAction, &QAction::triggered, []() {
-        // 未设置密码时提示先设置密码（对齐原版），不启动锁屏。
+        // 未设置密码时提示先设置密码，并直接打开设置界面便于用户设置。
         if (lockScreenPassword().isEmpty()) {
             QMessageBox::information(nullptr, QStringLiteral("神隐锁屏设置"),
-                                     QStringLiteral("尚未设置解锁密码！"));
+                                     QStringLiteral("尚未设置解锁密码！请先设置密码。"));
+            ConfigForm configForm;
+            configForm.exec();
             return;
         }
         // 启动锁屏子进程：父进程太极图标不变，锁屏子进程自带锁图标托盘。

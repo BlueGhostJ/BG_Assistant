@@ -23,6 +23,7 @@ private slots:
 private:
     Ui::ConfigForm *ui;
     void loadSettings();
+    void updatePasswordVisibility();
 };
 
 #endif // CONFIGFORM_H
