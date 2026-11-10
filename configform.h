@@ -17,6 +17,7 @@ public:
 
 private slots:
     void applyAutoStart(bool enabled);
+    void applyKeepScreenOn(bool enabled);
 
 private:
     Ui::ConfigForm *ui;

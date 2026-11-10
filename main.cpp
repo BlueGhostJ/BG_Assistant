@@ -67,6 +67,17 @@ int main(int argc, char *argv[])
 
     trayIcon.setContextMenu(&trayMenu);
 
+    // 锁屏期间托盘切换为「锁」图标，解锁后恢复太极动画（对齐原版）。
+    QObject::connect(&lockScreen, &LockScreen::lockStateChanged, [&](bool locked) {
+        if (locked) {
+            timer.stop();
+            trayIcon.setIcon(QIcon(QStringLiteral(":/icon/icons/lock.png")));
+        } else {
+            trayIcon.setIcon(frames[currentFrame]);
+            timer.start();
+        }
+    });
+
     QObject::connect(&trayIcon, &QSystemTrayIcon::activated, [&](QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger) {
             trayMenu.popup(QCursor::pos());

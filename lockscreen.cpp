@@ -72,15 +72,31 @@ static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lP
 }
 #endif
 
-// 密码保存在 exe 同目录的 BGAssistant.ini 中（[LockScreen] Password），
-// 不写注册表。开发期间未配置时回退到写死的 "a"，暂不加密。
+// 配置统一存放在 exe 同目录的 BGAssistant.ini（不写注册表）。
+static QString lockScreenIniPath()
+{
+    return QCoreApplication::applicationDirPath()
+           + QDir::separator() + QStringLiteral("BGAssistant.ini");
+}
+
 QString lockScreenPassword()
 {
-    const QString iniPath = QCoreApplication::applicationDirPath()
-                            + QDir::separator() + QStringLiteral("BGAssistant.ini");
-    QSettings ini(iniPath, QSettings::IniFormat);
+    QSettings ini(lockScreenIniPath(), QSettings::IniFormat);
     const QString pwd = ini.value(QStringLiteral("LockScreen/Password")).toString();
+    // 开发期间未配置时回退到写死的 "a"，暂不加密。
     return pwd.isEmpty() ? QStringLiteral("a") : pwd;
+}
+
+bool lockScreenKeepScreenOn()
+{
+    QSettings ini(lockScreenIniPath(), QSettings::IniFormat);
+    return ini.value(QStringLiteral("LockScreen/KeepScreenOn"), false).toBool();
+}
+
+void setLockScreenKeepScreenOn(bool on)
+{
+    QSettings ini(lockScreenIniPath(), QSettings::IniFormat);
+    ini.setValue(QStringLiteral("LockScreen/KeepScreenOn"), on);
 }
 
 LockScreen::LockScreen() : QWidget(nullptr)
@@ -101,11 +117,11 @@ LockScreen::LockScreen() : QWidget(nullptr)
     mouseLockTimer->setInterval(50);
     connect(mouseLockTimer, &QTimer::timeout, this, [this]() {
 #ifdef Q_OS_WIN
-        QScreen *screen = QGuiApplication::primaryScreen();
-        if (screen) {
-            const QRect geo = screen->geometry();
-            SetCursorPos(geo.center().x(), geo.center().y());
-        }
+        // SetCursorPos 接收物理像素坐标，直接用系统主屏物理尺寸取中心，
+        // 避免 Qt 逻辑坐标在高 DPI 缩放（>100%）下偏移到左上。
+        const int cx = GetSystemMetrics(SM_CXSCREEN);
+        const int cy = GetSystemMetrics(SM_CYSCREEN);
+        SetCursorPos(cx / 2, cy / 2);
 #endif
     });
 }
@@ -177,6 +193,15 @@ void LockScreen::showLockScreen()
         return;
     }
 
+    // 清空上次残留输入：锁屏是常驻窗口反复复用，
+    // 残留密码会让第二次锁屏"敲一字符再退格"即可解锁，必须每次从空开始。
+    passwordEdit->clear();
+
+#ifdef Q_OS_WIN
+    // 记录锁屏前的激活窗口句柄，解锁后恢复焦点（对齐原版 GetForegroundWindow）。
+    prevForegroundWindow = reinterpret_cast<void*>(GetForegroundWindow());
+#endif
+
     showFullScreen();
     raise();
     activateWindow();
@@ -187,7 +212,9 @@ void LockScreen::showLockScreen()
         grabMouse();
         installHooks();
         mouseLockTimer->start();
-        keepScreenOn(true);
+        // 屏幕常亮为可选设置项（存 ini），仅在用户勾选时开启。
+        if (lockScreenKeepScreenOn())
+            keepScreenOn(true);
 
 #ifdef Q_OS_WIN
         HWND hwnd = (HWND)this->winId();
@@ -202,6 +229,7 @@ void LockScreen::showLockScreen()
         });
 
         showToast(QStringLiteral("已锁定"));
+        emit lockStateChanged(true);
         qDebug() << "锁屏已激活 - 键盘+鼠标已捕获";
     });
 }
@@ -304,15 +332,26 @@ void LockScreen::doUnlock()
     qApp->removeEventFilter(this);
     mouseLockTimer->stop();
     keepScreenOn(false);
+    passwordEdit->clear();  // 清空输入，防止二次锁屏被残留密码一键解锁
     close();
+
+#ifdef Q_OS_WIN
+    // 解锁后把焦点还给锁屏前的激活窗口（对齐原版）。
+    if (prevForegroundWindow) {
+        SetForegroundWindow(reinterpret_cast<HWND>(prevForegroundWindow));
+        prevForegroundWindow = nullptr;
+    }
+#endif
+
     showToast(QStringLiteral("已解锁"));
+    emit lockStateChanged(false);
     qDebug() << "解锁成功";
 }
 
 void LockScreen::keepScreenOn(bool on)
 {
 #ifdef Q_OS_WIN
-    // 锁屏期间保持屏幕常亮（对齐原版“屏幕常亮时钟”）：
+    // 锁屏期间保持屏幕常亮（对齐原版“屏幕常亮时钟”，由设置项控制）：
     // 阻止系统在锁屏期间进入待机/关闭显示器，解锁后复位。
     SetThreadExecutionState(on ? (ES_CONTINUOUS | ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED)
                                : ES_CONTINUOUS);

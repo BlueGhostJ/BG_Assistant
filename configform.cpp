@@ -7,6 +7,8 @@
 #include <QIcon>
 #include <QSignalBlocker>
 
+#include "lockscreen.h"  // lockScreenKeepScreenOn / setLockScreenKeepScreenOn（ini 配置）
+
 #ifdef Q_OS_WIN
 namespace {
 
@@ -73,6 +75,8 @@ ConfigForm::ConfigForm(QWidget *parent)
     // 而 checkStateChanged 在 6.7 之前不存在，toggled 各版本都可用。
     connect(ui->autoStartCheckBox, &QCheckBox::toggled,
             this, &ConfigForm::applyAutoStart);
+    connect(ui->keepScreenOnCheckBox, &QCheckBox::toggled,
+            this, &ConfigForm::applyKeepScreenOn);
 }
 
 ConfigForm::~ConfigForm()
@@ -90,6 +94,10 @@ void ConfigForm::loadSettings()
     ui->autoStartCheckBox->setChecked(false);
     ui->autoStartCheckBox->setEnabled(false);
 #endif
+
+    // 锁屏期间保持屏幕常亮：纯 ini 配置，与平台无关
+    const QSignalBlocker blocker2(ui->keepScreenOnCheckBox);
+    ui->keepScreenOnCheckBox->setChecked(lockScreenKeepScreenOn());
 }
 
 void ConfigForm::applyAutoStart(bool enabled)
@@ -99,4 +107,9 @@ void ConfigForm::applyAutoStart(bool enabled)
 #else
     Q_UNUSED(enabled)
 #endif
+}
+
+void ConfigForm::applyKeepScreenOn(bool enabled)
+{
+    setLockScreenKeepScreenOn(enabled);
 }

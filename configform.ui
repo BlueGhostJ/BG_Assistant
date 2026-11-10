@@ -34,6 +34,13 @@
     </widget>
    </item>
    <item>
+    <widget class="QCheckBox" name="keepScreenOnCheckBox">
+     <property name="text">
+      <string>锁屏期间保持屏幕常亮</string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
