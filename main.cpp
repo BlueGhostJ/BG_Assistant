@@ -14,13 +14,6 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    if (app.arguments().contains("/lockscreen")) {
-        LockScreen lockScreen;
-        lockScreen.setPassword("a");
-        lockScreen.showLockScreen();
-        return app.exec();
-    }
-
     QApplication::setQuitOnLastWindowClosed(false);
 
     // 栈对象：生命周期覆盖整个 exec()，退出时自动释放，不会泄漏
@@ -37,9 +30,13 @@ int main(int argc, char *argv[])
         QProcess::startDetached("rundll32.exe", QStringList() << "user32.dll,LockWorkStation");
     });
 
+    // 神隐锁屏：在当前进程内直接弹出全屏锁屏窗口，不再走 /lockscreen 子进程。
+    LockScreen lockScreen;
+    lockScreen.setPassword(lockScreenPassword());
+
     QAction *lockScreenAction = new QAction("遮屏", &trayMenu);
-    QObject::connect(lockScreenAction, &QAction::triggered, []() {
-        QProcess::startDetached(QApplication::applicationFilePath(), QStringList() << "/lockscreen");
+    QObject::connect(lockScreenAction, &QAction::triggered, [&lockScreen]() {
+        lockScreen.showLockScreen();
     });
 
     QAction *quitAction = new QAction("退出", &trayMenu);

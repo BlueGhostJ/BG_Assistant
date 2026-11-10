@@ -128,7 +128,7 @@ HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
 ## 注意事项
 
 - **遮屏不是安全锁。** 它用于防止他人误操作或窥屏，无法阻止任务管理器结束进程、`Ctrl+Alt+Del`、`Win+L` 等系统级操作；多显示器环境下目前仅覆盖主屏。
-- 遮屏密码当前硬编码在 `main.cpp` 中，仅适合个人临时使用，请勿用于真实的安全防护场景。
+- 遮屏（神隐锁屏）密码保存在 exe 同目录的 `BGAssistant.ini`（`[LockScreen]` 节的 `Password` 键），不再写注册表；开发期间未配置时默认使用 `a`（明文、未加密），仅适合个人临时使用，请勿用于真实的安全防护场景。
 - **托盘图标动画持续播放是有意设计。** 太极图标以 40ms 间隔循环播放（`main.cpp` 中的 `QTimer`），常驻重绘属于预期行为，不作为待优化项，代码审查时无需再提出。
 - `icons\app.ico` 通过 `app.rc.in` 生成 `app.rc` 后编入 exe 的资源段，这是 exe 图标生效的唯一途径（CMake 没有 `WINDOWS_ICON` 属性）。
 
