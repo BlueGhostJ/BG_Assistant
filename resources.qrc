@@ -1,0 +1,47 @@
+<RCC>
+    <qresource prefix="/icon">
+        <file>icons/0.jpg</file>
+        <file>icons/1.jpg</file>
+        <file>icons/2.jpg</file>
+        <file>icons/3.jpg</file>
+        <file>icons/4.jpg</file>
+        <file>icons/5.jpg</file>
+        <file>icons/6.jpg</file>
+        <file>icons/7.jpg</file>
+        <file>icons/8.jpg</file>
+        <file>icons/app.ico</file>
+        <file>icons/config.png</file>
+    </qresource>
+    <qresource prefix="/trayIcon">
+        <file>icons/TaiChi1/1.png</file>
+        <file>icons/TaiChi1/2.png</file>
+        <file>icons/TaiChi1/3.png</file>
+        <file>icons/TaiChi1/4.png</file>
+        <file>icons/TaiChi1/5.png</file>
+        <file>icons/TaiChi1/6.png</file>
+        <file>icons/TaiChi1/7.png</file>
+        <file>icons/TaiChi1/8.png</file>
+        <file>icons/TaiChi1/9.png</file>
+        <file>icons/TaiChi1/10.png</file>
+        <file>icons/TaiChi1/11.png</file>
+        <file>icons/TaiChi1/12.png</file>
+        <file>icons/TaiChi1/13.png</file>
+        <file>icons/TaiChi1/14.png</file>
+        <file>icons/TaiChi1/15.png</file>
+        <file>icons/TaiChi1/16.png</file>
+        <file>icons/TaiChi1/17.png</file>
+        <file>icons/TaiChi1/18.png</file>
+        <file>icons/TaiChi1/19.png</file>
+        <file>icons/TaiChi1/20.png</file>
+        <file>icons/TaiChi1/21.png</file>
+        <file>icons/TaiChi1/22.png</file>
+        <file>icons/TaiChi1/23.png</file>
+        <file>icons/TaiChi1/24.png</file>
+        <file>icons/TaiChi1/25.png</file>
+        <file>icons/TaiChi1/26.png</file>
+        <file>icons/TaiChi1/27.png</file>
+        <file>icons/TaiChi1/28.png</file>
+        <file>icons/TaiChi1/29.png</file>
+        <file>icons/TaiChi1/30.png</file>
+    </qresource>
+</RCC>
