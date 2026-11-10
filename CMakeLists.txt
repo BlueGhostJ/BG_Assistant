@@ -21,6 +21,8 @@ set(PROJECT_SOURCES
         configform.ui
         lockscreen.cpp
         lockscreen.h
+        aes.cpp
+        aes.h
         resources.qrc
 )
 

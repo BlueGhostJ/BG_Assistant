@@ -10,6 +10,7 @@
 #endif
 
 #include "lockscreen.h"
+#include "aes.h"
 
 #include <QApplication>
 #include <QLabel>
@@ -79,12 +80,39 @@ static QString lockScreenIniPath()
            + QDir::separator() + QStringLiteral("BGAssistant.ini");
 }
 
+// 锁屏密码的 AES 密钥（16 字节，AES-128）。
+// 原易语言版密钥内嵌在二进制 token 的常量索引中，无法精确反编译还原；
+// 此处采用固定的 16 字符密钥，加密算法/模式/填充/编码与原版 CryptoJS 完全一致。
+static QString lockScreenAesKey()
+{
+    return QStringLiteral("BGAssistantLock!");
+}
+
 QString lockScreenPassword()
 {
     QSettings ini(lockScreenIniPath(), QSettings::IniFormat);
-    const QString pwd = ini.value(QStringLiteral("LockScreen/Password")).toString();
-    // 开发期间未配置时回退到写死的 "a"，暂不加密。
-    return pwd.isEmpty() ? QStringLiteral("a") : pwd;
+    const QString stored = ini.value(QStringLiteral("LockScreen/Password")).toString();
+    if (stored.isEmpty())
+        return QStringLiteral("a");   // 默认密码，兼容此前写死的 "a"
+
+    const QString plain = aesDecryptBase64(stored, lockScreenAesKey());
+    return plain.isEmpty() ? QStringLiteral("a") : plain;
+}
+
+void setLockScreenPassword(const QString &plain)
+{
+    QSettings ini(lockScreenIniPath(), QSettings::IniFormat);
+    ini.setValue(QStringLiteral("LockScreen/Password"),
+                 aesEncryptBase64(plain, lockScreenAesKey()));
+}
+
+void ensureLockScreenConfig()
+{
+    // 首次启动时 ini 尚不存在：写入默认密码，QSettings::setValue 会自动创建文件。
+    QSettings ini(lockScreenIniPath(), QSettings::IniFormat);
+    if (ini.value(QStringLiteral("LockScreen/Password")).toString().isEmpty())
+        ini.setValue(QStringLiteral("LockScreen/Password"),
+                     aesEncryptBase64(QStringLiteral("a"), lockScreenAesKey()));
 }
 
 bool lockScreenKeepScreenOn()
@@ -192,6 +220,9 @@ void LockScreen::showLockScreen()
         activateWindow();
         return;
     }
+
+    // 每次锁定时重新读取密码：设置页改密码后无需重启即可生效（对齐原版每次锁屏读密码）。
+    correctPassword = lockScreenPassword();
 
     // 清空上次残留输入：锁屏是常驻窗口反复复用，
     // 残留密码会让第二次锁屏"敲一字符再退格"即可解锁，必须每次从空开始。

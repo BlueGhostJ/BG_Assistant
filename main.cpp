@@ -31,6 +31,7 @@ int main(int argc, char *argv[])
     });
 
     // 神隐锁屏：在当前进程内直接弹出全屏锁屏窗口，不再走 /lockscreen 子进程。
+    ensureLockScreenConfig();   // 首次启动时自动创建 ini 并写入默认密码
     LockScreen lockScreen;
     lockScreen.setPassword(lockScreenPassword());
 

@@ -6,13 +6,19 @@
 class QLineEdit;
 class QTimer;
 
-// 从 exe 同目录的 BGAssistant.ini 读取锁屏密码（不写注册表）。
-// 开发期间未在 ini 中配置时，默认返回写死的密码 "a"。
+// 从 exe 同目录的 BGAssistant.ini 读取锁屏密码（AES 加密存储，不写注册表）。
+// 未配置时返回默认密码 "a"。
 QString lockScreenPassword();
+
+// 设置锁屏密码：AES 加密后写入 ini。
+void setLockScreenPassword(const QString &plain);
 
 // 锁屏期间是否保持屏幕常亮（对应设置页「锁屏期间保持屏幕常亮」，存 ini）。
 bool lockScreenKeepScreenOn();
 void setLockScreenKeepScreenOn(bool on);
+
+// 确保配置 ini 存在：无密码时写入默认密码（用于首次启动自动创建 ini）。
+void ensureLockScreenConfig();
 
 // 神隐锁屏：全屏透明窗口，屏幕上不显示任何锁屏组件（保持屏幕原样、肉眼不可见），
 // 屏蔽键盘/鼠标操作；焦点锁定到隐藏的密码框，盲打密码，输入正确即自动解锁。

@@ -6,8 +6,9 @@
 #include <QDir>
 #include <QIcon>
 #include <QSignalBlocker>
+#include <QMessageBox>
 
-#include "lockscreen.h"  // lockScreenKeepScreenOn / setLockScreenKeepScreenOn（ini 配置）
+#include "lockscreen.h"  // lockScreenKeepScreenOn / setLockScreenKeepScreenOn / 密码读写（ini 配置）
 
 #ifdef Q_OS_WIN
 namespace {
@@ -77,6 +78,8 @@ ConfigForm::ConfigForm(QWidget *parent)
             this, &ConfigForm::applyAutoStart);
     connect(ui->keepScreenOnCheckBox, &QCheckBox::toggled,
             this, &ConfigForm::applyKeepScreenOn);
+    connect(ui->savePasswordButton, &QPushButton::clicked,
+            this, &ConfigForm::applyPassword);
 }
 
 ConfigForm::~ConfigForm()
@@ -112,4 +115,30 @@ void ConfigForm::applyAutoStart(bool enabled)
 void ConfigForm::applyKeepScreenOn(bool enabled)
 {
     setLockScreenKeepScreenOn(enabled);
+}
+
+void ConfigForm::applyPassword()
+{
+    const QString oldPwd = ui->oldPasswordEdit->text();
+    const QString newPwd = ui->newPasswordEdit->text();
+    const QString confirmPwd = ui->confirmPasswordEdit->text();
+
+    // 校验顺序对齐原易语言版：先比对两次新密码，再校验原密码。
+    if (newPwd != confirmPwd) {
+        QMessageBox::warning(this, QStringLiteral("神隐锁屏设置"),
+                             QStringLiteral("锁屏密码与确认密码不一致！"));
+        return;
+    }
+    if (oldPwd != lockScreenPassword()) {
+        QMessageBox::warning(this, QStringLiteral("神隐锁屏设置"),
+                             QStringLiteral("原锁屏密码错误！"));
+        return;
+    }
+
+    setLockScreenPassword(newPwd);
+    ui->oldPasswordEdit->clear();
+    ui->newPasswordEdit->clear();
+    ui->confirmPasswordEdit->clear();
+    QMessageBox::information(this, QStringLiteral("神隐锁屏设置"),
+                             QStringLiteral("锁屏密码已保存！"));
 }
