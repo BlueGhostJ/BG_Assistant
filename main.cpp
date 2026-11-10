@@ -16,9 +16,25 @@ int main(int argc, char *argv[])
 
     // 神隐锁屏子进程：以命令行参数 superLock 独立启动，解锁后退出进程。
     // 锁屏相关的键盘钩子/焦点/鼠标锁定等状态随进程退出自动清理，避免常驻对象残留问题。
+    // 对齐原版：父进程的太极托盘图标保持不变，子进程在托盘区另挂一个「锁」图标。
     if (app.arguments().contains(QStringLiteral("superLock"))) {
+        QApplication::setQuitOnLastWindowClosed(false);
+
         LockScreen lockScreen;
         lockScreen.setPassword(lockScreenPassword());
+
+        // 锁屏子进程自己的托盘图标（锁图标）+ 只读提示菜单。
+        QMenu lockTrayMenu;
+        QAction *lockedHint = new QAction(QStringLiteral("屏幕已锁定"), &lockTrayMenu);
+        lockedHint->setEnabled(false);
+        lockTrayMenu.addAction(lockedHint);
+
+        QSystemTrayIcon lockTrayIcon;
+        lockTrayIcon.setIcon(QIcon(QStringLiteral(":/icon/icons/lock.png")));
+        lockTrayIcon.setToolTip(QStringLiteral("屏幕已锁定"));
+        lockTrayIcon.setContextMenu(&lockTrayMenu);
+        lockTrayIcon.show();
+
         QObject::connect(&lockScreen, &LockScreen::unlocked, &app, &QApplication::quit);
         lockScreen.showLockScreen();
         return app.exec();
@@ -42,6 +58,11 @@ int main(int argc, char *argv[])
     });
 
     QAction *lockScreenAction = new QAction("遮屏", &trayMenu);
+    QObject::connect(lockScreenAction, &QAction::triggered, []() {
+        // 启动锁屏子进程：父进程太极图标不变，锁屏子进程自带锁图标托盘。
+        QProcess::startDetached(QApplication::applicationFilePath(),
+                                QStringList() << QStringLiteral("superLock"));
+    });
 
     QAction *quitAction = new QAction("退出", &trayMenu);
     QObject::connect(quitAction, &QAction::triggered, &app, &QApplication::quit);
@@ -70,25 +91,6 @@ int main(int argc, char *argv[])
     timer.start(40);
 
     trayIcon.setContextMenu(&trayMenu);
-
-    // 锁屏以独立子进程运行：启动时托盘切「锁」图标并暂停动画，子进程退出后恢复。
-    QProcess lockScreenProcess;
-    QObject::connect(lockScreenAction, &QAction::triggered, [&]() {
-        if (lockScreenProcess.state() != QProcess::NotRunning)
-            return;
-        timer.stop();
-        trayIcon.setIcon(QIcon(QStringLiteral(":/icon/icons/lock.png")));
-        lockScreenProcess.start(QApplication::applicationFilePath(),
-                                QStringList() << QStringLiteral("superLock"));
-    });
-    QObject::connect(&lockScreenProcess,
-                     QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                     [&](int exitCode, QProcess::ExitStatus exitStatus) {
-        Q_UNUSED(exitCode)
-        Q_UNUSED(exitStatus)
-        trayIcon.setIcon(frames[currentFrame]);
-        timer.start();
-    });
 
     QObject::connect(&trayIcon, &QSystemTrayIcon::activated, [&](QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger) {
