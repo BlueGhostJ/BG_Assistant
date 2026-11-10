@@ -1,21 +1,31 @@
+// windows.h 必须带着 NOMINMAX / WIN32_LEAN_AND_MEAN 引入，
+// 否则 min/max 宏会污染本文件后续所有头文件（以及任何包含 lockscreen.h 的地方）。
+#ifdef _WIN32
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#endif
+
 #include "lockscreen.h"
 #include <QVBoxLayout>
 #include <QApplication>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPushButton>
-#include <QKeyEvent>
 #include <QMouseEvent>
 #include <QTimer>
 #include <QDebug>
 #include <QGuiApplication>
 #include <QScreen>
-#include <QWindow>
-#include <QCoreApplication>
 #include <QPainter>
 #include <QPixmap>
 
 #ifdef Q_OS_WIN
-#pragma comment(lib, "user32.lib")
+#  include <windows.h>
+#  pragma comment(lib, "user32.lib")
 
 static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
@@ -143,8 +153,8 @@ void LockScreen::installHooks()
 {
 #ifdef Q_OS_WIN
     if (!keyboardHook) {
-        keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc,
-                                        GetModuleHandle(nullptr), 0);
+        keyboardHook = SetWindowsHookExW(WH_KEYBOARD_LL, LowLevelKeyboardProc,
+                                         GetModuleHandleW(nullptr), 0);
         qDebug() << "低级键盘钩子安装:" << (keyboardHook ? "成功" : "失败");
     }
 #endif
@@ -154,7 +164,7 @@ void LockScreen::removeHooks()
 {
 #ifdef Q_OS_WIN
     if (keyboardHook) {
-        UnhookWindowsHookEx(keyboardHook);
+        UnhookWindowsHookEx(static_cast<HHOOK>(keyboardHook));
         keyboardHook = nullptr;
         qDebug() << "键盘钩子已卸载";
     }
@@ -187,19 +197,11 @@ void LockScreen::showLockScreen()
     });
 }
 
-void LockScreen::keyPressEvent(QKeyEvent *event)
-{
-    QWidget *focused = focusWidget();
-    if (focused && focused != this) {
-        QCoreApplication::sendEvent(focused, event);
-        return;
-    }
-    QWidget::keyPressEvent(event);
-}
-
 void LockScreen::mousePressEvent(QMouseEvent *event)
 {
-    event->ignore();
+    // 顶级窗口没有父窗口可传，ignore() 没有任何作用。
+    // 这里显式吞掉点击，语义是"遮罩层吃掉空白处点击"。
+    event->accept();
 }
 
 bool LockScreen::eventFilter(QObject *watched, QEvent *event)
@@ -246,7 +248,6 @@ bool LockScreen::nativeEvent(const QByteArray &eventType, void *message, qintptr
                     SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
                                  SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
                     SetForegroundWindow(hwnd);
-                    ShowWindow(hwnd, SW_SHOWMAXIMIZED);
                     grabKeyboard();
                     grabMouse();
                     installHooks();
@@ -256,8 +257,12 @@ bool LockScreen::nativeEvent(const QByteArray &eventType, void *message, qintptr
     }
     if (msg->message == WM_WINDOWPOSCHANGING) {
         WINDOWPOS *wp = reinterpret_cast<WINDOWPOS*>(msg->lParam);
-        wp->hwndInsertAfter = HWND_TOPMOST;
-        wp->flags &= ~SWP_NOZORDER;
+        // 只在本次调整确实要改变 z-order 时才强制置顶，
+        // 否则会连带影响后续任何子窗口/弹窗的层级。
+        if (wp && !(wp->flags & SWP_NOZORDER)) {
+            wp->hwndInsertAfter = HWND_TOPMOST;
+            wp->flags &= ~SWP_NOZORDER;
+        }
     }
 #endif
     return QWidget::nativeEvent(eventType, message, result);

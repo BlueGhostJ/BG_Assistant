@@ -12,11 +12,11 @@ class ConfigForm : public QDialog
     Q_OBJECT
 
 public:
-    explicit ConfigForm(QDialog *parent = nullptr);
-    ~ConfigForm();
+    explicit ConfigForm(QWidget *parent = nullptr);
+    ~ConfigForm() override;
 
 private slots:
-    void on_autoStartCheckBox_stateChanged(int state);
+    void applyAutoStart(bool enabled);
 
 private:
     Ui::ConfigForm *ui;

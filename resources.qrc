@@ -11,6 +11,12 @@
         <file>icons/8.jpg</file>
         <file>icons/app.ico</file>
         <file>icons/config.png</file>
+        <file>icons/lock.ico</file>
+        <file>icons/lock.png</file>
+        <file>icons/lock_open.ico</file>
+        <file>icons/lock_open.png</file>
+        <file>icons/lock_brocker.ico</file>
+        <file>icons/lock_brocken.png</file>
     </qresource>
     <qresource prefix="/trayIcon">
         <file>icons/TaiChi1/1.png</file>

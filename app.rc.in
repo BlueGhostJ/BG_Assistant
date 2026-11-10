@@ -1,0 +1,3 @@
+// 由 CMake 从 app.rc.in 生成，供 Windows 资源编译器使用。
+// 图标必须走这里，才能作为 exe 的图标显示在资源管理器/任务栏。
+IDI_ICON1 ICON "@CMAKE_CURRENT_SOURCE_DIR@/icons/app.ico"
