@@ -3,8 +3,9 @@
 
 #include <QWidget>
 
-class QLineEdit;
 class QTimer;
+class QKeyEvent;
+class QPaintEvent;
 
 // 从 exe 同目录的 BGAssistant.ini 读取锁屏密码（AES 加密存储，不写注册表）。
 // 未配置时返回默认密码 "a"。
@@ -20,8 +21,8 @@ void setLockScreenKeepScreenOn(bool on);
 // 确保配置 ini 存在：无密码时写入默认密码（用于首次启动自动创建 ini）。
 void ensureLockScreenConfig();
 
-// 神隐锁屏：全屏透明窗口，屏幕上不显示任何锁屏组件（保持屏幕原样、肉眼不可见），
-// 屏蔽键盘/鼠标操作；焦点锁定到隐藏的密码框，盲打密码，输入正确即自动解锁。
+// 神隐锁屏：全屏近乎透明窗口（alpha=1，肉眼不可见），屏幕上不显示任何锁屏组件，
+// 屏蔽键盘/鼠标操作；键盘输入由窗口自身 keyPressEvent 累积，盲打密码匹配即自动解锁。
 // 仅在锁定时弹「已锁定」、解锁时弹「已解锁」提示。行为对齐原易语言版。
 //
 // 由命令行 superLock 参数以独立子进程启动，解锁后发出 unlocked() 信号、由调用方退出进程，
@@ -42,23 +43,20 @@ signals:
     void unlocked();
 
 protected:
+    void keyPressEvent(QKeyEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
+    void paintEvent(QPaintEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 
-private slots:
-    void onPasswordChanged(const QString &text);
-    void attemptUnlock();
-
 private:
-    QLineEdit *passwordEdit = nullptr;
     QTimer *mouseLockTimer = nullptr;
     QString correctPassword;
+    QString inputBuffer;   // 盲打密码累积缓冲区
     // 用 void* 保存 HHOOK / HWND：头文件里不引 windows.h，避免 min/max 宏污染所有包含者
     void *keyboardHook = nullptr;
     void *prevForegroundWindow = nullptr;
 
-    void setupUI();
     void installHooks();
     void removeHooks();
     void doUnlock();

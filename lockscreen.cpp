@@ -14,13 +14,14 @@
 
 #include <QApplication>
 #include <QLabel>
-#include <QLineEdit>
-#include <QPushButton>
 #include <QTimer>
 #include <QDebug>
 #include <QGuiApplication>
 #include <QScreen>
+#include <QKeyEvent>
 #include <QMouseEvent>
+#include <QPaintEvent>
+#include <QPainter>
 #include <QSettings>
 #include <QCoreApplication>
 #include <QDir>
@@ -131,17 +132,16 @@ LockScreen::LockScreen() : QWidget(nullptr)
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint |
                    Qt::WindowStaysOnTopHint);
     setAttribute(Qt::WA_DeleteOnClose, false);
-    // 神隐：窗口全透明（透出真实桌面），锁屏期间屏幕上不显示任何锁屏组件。
+    // 神隐：窗口近乎透明（alpha=1），透出真实桌面、屏幕上不显示任何锁屏组件；
+    // alpha 不能为 0，否则 Windows 分层窗口会鼠标穿透到下层软件。
     setAttribute(Qt::WA_TranslucentBackground);
     setWindowModality(Qt::ApplicationModal);
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
 
-    setupUI();
-
     // 鼠标锁定：周期把光标拉回屏幕正中央（对齐原版“锁定鼠标线程”）。
     mouseLockTimer = new QTimer(this);
-    mouseLockTimer->setInterval(50);
+    mouseLockTimer->setInterval(20);
     connect(mouseLockTimer, &QTimer::timeout, this, [this]() {
 #ifdef Q_OS_WIN
         // SetCursorPos 接收物理像素坐标，直接用系统主屏物理尺寸取中心，
@@ -162,32 +162,17 @@ LockScreen::~LockScreen()
         qApp->removeEventFilter(this);
 }
 
-void LockScreen::setupUI()
-{
-    // 锁屏期间屏幕上看不到任何组件（神隐）：
-    // 密码框视觉不可见（透明、无边框、透明文字与光标、1x1 放在窗口角落），
-    // 仅作为焦点控件接收盲打输入，输入内容匹配密码时由 textChanged 自动解锁。
-    passwordEdit = new QLineEdit(this);
-    passwordEdit->setEchoMode(QLineEdit::Password);
-    passwordEdit->setFocusPolicy(Qt::StrongFocus);
-    passwordEdit->setStyleSheet(
-        "QLineEdit { background: transparent; border: none;"
-        " color: transparent; caret-color: transparent;"
-        " selection-background-color: transparent; }");
-    passwordEdit->resize(1, 1);
-
-    connect(passwordEdit, &QLineEdit::textChanged, this, &LockScreen::onPasswordChanged);
-
-    // 解锁按钮：保留但不可见（原版锁屏界面无任何可见组件），
-    // 仅作为手动解锁的兜底；正常解锁由盲打密码自动触发。
-    QPushButton *unlockButton = new QPushButton(QStringLiteral("解锁"), this);
-    unlockButton->hide();
-    connect(unlockButton, &QPushButton::clicked, this, &LockScreen::attemptUnlock);
-}
-
 void LockScreen::setPassword(const QString &password)
 {
     correctPassword = password;
+}
+
+void LockScreen::paintEvent(QPaintEvent *event)
+{
+    Q_UNUSED(event)
+    // alpha=1：肉眼不可见（保持神隐），但 alpha>0 使分层窗口的鼠标命中测试生效，拦截鼠标。
+    QPainter painter(this);
+    painter.fillRect(rect(), QColor(0, 0, 0, 1));
 }
 
 void LockScreen::installHooks()
@@ -220,8 +205,7 @@ void LockScreen::showLockScreen()
         return;
     }
 
-    // 清空残留输入（防御：防止残留密码导致直接匹配解锁）。
-    passwordEdit->clear();
+    inputBuffer.clear();
 
 #ifdef Q_OS_WIN
     // 记录锁屏前的激活窗口句柄，解锁后恢复焦点（对齐原版 GetForegroundWindow）。
@@ -247,16 +231,37 @@ void LockScreen::showLockScreen()
         SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
                      SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
         SetForegroundWindow(hwnd);
+        BringWindowToTop(hwnd);
 #endif
-
-        // 焦点锁定到密码框：锁屏期间持续保证键盘输入进入密码框。
-        QTimer::singleShot(0, passwordEdit, [this]() {
-            passwordEdit->setFocus();
-        });
 
         showToast(QStringLiteral("已锁定"));
         qDebug() << "锁屏已激活 - 键盘+鼠标已捕获";
     });
+}
+
+void LockScreen::keyPressEvent(QKeyEvent *event)
+{
+    // 盲打密码：由锁屏窗口自身累积按键字符（grabKeyboard 会把键盘事件定向到本窗口，
+    // 若走密码框则收不到输入）。匹配密码即解锁。
+    if (event->key() == Qt::Key_Backspace) {
+        if (!inputBuffer.isEmpty())
+            inputBuffer.chop(1);
+        event->accept();
+        return;
+    }
+
+    const QString text = event->text();
+    if (!text.isEmpty()) {
+        inputBuffer += text;
+        if (inputBuffer == correctPassword) {
+            doUnlock();
+            return;
+        }
+        // 长度达到密码长度仍未匹配：清空重来（盲打无反馈，避免累积错乱）。
+        if (inputBuffer.size() >= correctPassword.size())
+            inputBuffer.clear();
+    }
+    event->accept();
 }
 
 void LockScreen::mousePressEvent(QMouseEvent *event)
@@ -290,7 +295,6 @@ bool LockScreen::eventFilter(QObject *watched, QEvent *event)
 #endif
                 grabKeyboard();
                 grabMouse();
-                passwordEdit->setFocus();
             }
         });
     }
@@ -330,25 +334,6 @@ bool LockScreen::nativeEvent(const QByteArray &eventType, void *message, qintptr
     return QWidget::nativeEvent(eventType, message, result);
 }
 
-void LockScreen::onPasswordChanged(const QString &text)
-{
-    // 对齐原版：输入内容一旦等于锁屏密码即自动解锁（无需回车/按钮）。
-    if (!correctPassword.isEmpty() && text == correctPassword)
-        doUnlock();
-}
-
-void LockScreen::attemptUnlock()
-{
-    if (passwordEdit->text() == correctPassword) {
-        doUnlock();
-    } else {
-        passwordEdit->clear();
-        passwordEdit->setPlaceholderText(QStringLiteral("密码错误，请重试"));
-        passwordEdit->setFocus();
-        qDebug() << "解锁失败";
-    }
-}
-
 void LockScreen::doUnlock()
 {
     removeHooks();
@@ -357,7 +342,7 @@ void LockScreen::doUnlock()
     qApp->removeEventFilter(this);
     mouseLockTimer->stop();
     keepScreenOn(false);
-    passwordEdit->clear();  // 清空输入，防止二次锁屏被残留密码一键解锁
+    inputBuffer.clear();
     close();
 
 #ifdef Q_OS_WIN
