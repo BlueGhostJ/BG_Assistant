@@ -80,12 +80,11 @@ static QString lockScreenIniPath()
            + QDir::separator() + QStringLiteral("BGAssistant.ini");
 }
 
-// 锁屏密码的 AES 密钥（16 字节，AES-128）。
-// 原易语言版密钥内嵌在二进制 token 的常量索引中，无法精确反编译还原；
-// 此处采用固定的 16 字符密钥，加密算法/模式/填充/编码与原版 CryptoJS 完全一致。
+// 锁屏密码的 AES 密钥：与易语言版常量「神隐锁屏密码加密秘钥」一致，
+// 值为 Qmx1ZUdob3N0（"BlueGhost" 的 Base64），12 字节 → keySize=3、nRounds=9（非标准 AES）。
 static QString lockScreenAesKey()
 {
-    return QStringLiteral("BGAssistantLock!");
+    return QStringLiteral("Qmx1ZUdob3N0");
 }
 
 QString lockScreenPassword()

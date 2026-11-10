@@ -49,6 +49,14 @@ const unsigned char RCON[11] = {
     0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36
 };
 
+// 取轮常量：索引超出 RCON 范围时返回 0。
+// 原版 CryptoJS 的 RC 数组只有 11 项，越界访问得到 undefined，undefined<<24 = 0；
+// 原版密钥为 12 字节（keySize=3、nRounds=9），密钥扩展会取到 RC[11..13]，等价于 0。
+inline unsigned char rcon(int idx)
+{
+    return (idx >= 0 && idx < 11) ? RCON[idx] : 0;
+}
+
 inline unsigned char xtime(unsigned char x)
 {
     return (x << 1) ^ (((x >> 7) & 1) * 0x1b);
@@ -143,7 +151,7 @@ QVector<unsigned char> keyExpansion(const QByteArray &key)
 
         if (wi / 4 % nk == 0) {
             unsigned char t = temp[0];
-            temp[0] = SBOX[temp[1]] ^ RCON[wi / 4 / nk];
+            temp[0] = SBOX[temp[1]] ^ rcon(wi / 4 / nk);
             temp[1] = SBOX[temp[2]];
             temp[2] = SBOX[temp[3]];
             temp[3] = SBOX[t];
@@ -223,7 +231,9 @@ QByteArray latin1Key(const QString &key)
 QString aesEncryptBase64(const QString &plain, const QString &key)
 {
     const QByteArray k = latin1Key(key);
-    if (k.size() != 16 && k.size() != 24 && k.size() != 32)
+    // 对齐原版 CryptoJS：密钥只需为 4 字节的整数倍（keySize = sigBytes/4，轮数 = keySize+6）。
+    // 原版密钥为 12 字节（keySize=3、nRounds=9），并非标准 16/24/32，故不做标准长度限制。
+    if (k.size() < 4 || k.size() % 4 != 0)
         return QString();
 
     QByteArray data = plain.toUtf8();
@@ -241,7 +251,8 @@ QString aesEncryptBase64(const QString &plain, const QString &key)
 QString aesDecryptBase64(const QString &b64, const QString &key)
 {
     const QByteArray k = latin1Key(key);
-    if (k.size() != 16 && k.size() != 24 && k.size() != 32)
+    // 同加密：密钥只需为 4 字节的整数倍，不做标准 16/24/32 限制。
+    if (k.size() < 4 || k.size() % 4 != 0)
         return QString();
 
     QByteArray cipher = QByteArray::fromBase64(b64.toLatin1());
