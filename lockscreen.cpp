@@ -220,11 +220,7 @@ void LockScreen::showLockScreen()
         return;
     }
 
-    // 每次锁定时重新读取密码：设置页改密码后无需重启即可生效（对齐原版每次锁屏读密码）。
-    correctPassword = lockScreenPassword();
-
-    // 清空上次残留输入：锁屏是常驻窗口反复复用，
-    // 残留密码会让第二次锁屏"敲一字符再退格"即可解锁，必须每次从空开始。
+    // 清空残留输入（防御：防止残留密码导致直接匹配解锁）。
     passwordEdit->clear();
 
 #ifdef Q_OS_WIN
@@ -259,7 +255,6 @@ void LockScreen::showLockScreen()
         });
 
         showToast(QStringLiteral("已锁定"));
-        emit lockStateChanged(true);
         qDebug() << "锁屏已激活 - 键盘+鼠标已捕获";
     });
 }
@@ -374,7 +369,7 @@ void LockScreen::doUnlock()
 #endif
 
     showToast(QStringLiteral("已解锁"));
-    emit lockStateChanged(false);
+    emit unlocked();
     qDebug() << "解锁成功";
 }
 

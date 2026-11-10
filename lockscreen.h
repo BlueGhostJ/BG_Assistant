@@ -23,6 +23,9 @@ void ensureLockScreenConfig();
 // 神隐锁屏：全屏透明窗口，屏幕上不显示任何锁屏组件（保持屏幕原样、肉眼不可见），
 // 屏蔽键盘/鼠标操作；焦点锁定到隐藏的密码框，盲打密码，输入正确即自动解锁。
 // 仅在锁定时弹「已锁定」、解锁时弹「已解锁」提示。行为对齐原易语言版。
+//
+// 由命令行 superLock 参数以独立子进程启动，解锁后发出 unlocked() 信号、由调用方退出进程，
+// 钩子/焦点/鼠标锁定等状态随进程退出而自动清理。
 class LockScreen : public QWidget
 {
     Q_OBJECT
@@ -35,8 +38,8 @@ public:
     void showLockScreen();
 
 signals:
-    // 锁屏状态变化：true=已锁定，false=已解锁。供托盘图标切换「锁/太极」图标。
-    void lockStateChanged(bool locked);
+    // 解锁成功（锁屏已解除）。锁屏子进程收到后退出进程。
+    void unlocked();
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
