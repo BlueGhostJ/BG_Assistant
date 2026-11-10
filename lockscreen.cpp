@@ -257,8 +257,9 @@ void LockScreen::keyPressEvent(QKeyEvent *event)
             doUnlock();
             return;
         }
-        // 长度达到密码长度仍未匹配：清空重来（盲打无反馈，避免累积错乱）。
-        if (inputBuffer.size() >= correctPassword.size())
+        // 逐字符前缀匹配（对齐原版）：输入必须从第一个字符开始匹配密码前缀，
+        // 一旦不匹配立即清空，从头重新输入。
+        if (!correctPassword.startsWith(inputBuffer))
             inputBuffer.clear();
     }
     event->accept();
