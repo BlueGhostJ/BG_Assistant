@@ -66,6 +66,40 @@ rmdir /s /q build
 
 ---
 
+## 部署（打包为独立目录）
+
+编译产出的 exe 依赖 Qt 的动态库，直接拷到没装 Qt 的机器上无法运行。用 `windeployqt` 把所需的 DLL 与插件复制到 exe 同级目录：
+
+```bat
+cd /d D:\Workspaces\BG_Assistant\build
+windeployqt --release --compiler-runtime BGAssistant.exe
+```
+
+参数说明：
+
+- `--release`：复制 Release 版 Qt 库。若构建的是 Debug 版本，改用 `--debug`。
+- `--compiler-runtime`：连同 MinGW 运行时（`libgcc_s_seh-1.dll`、`libstdc++-6.dll`、`libwinpthread-1.dll`）一并复制。缺少它们时，程序在干净的机器上会直接启动失败，且往往没有明确报错。
+
+执行后 `build\` 目录会补入：
+
+```
+BGAssistant.exe
+Qt6Core.dll  Qt6Gui.dll  Qt6Widgets.dll
+libgcc_s_seh-1.dll  libstdc++-6.dll  libwinpthread-1.dll
+platforms\qwindows.dll
+imageformats\   styles\   tls\   ...
+```
+
+整个 `build\` 目录即可作为免安装的绿色包分发。
+
+注意事项：
+
+- **exe 文件名是 `BGAssistant.exe`（无下划线）**，由 `CMakeLists.txt` 中的 `project(BGAssistant ...)` 决定。若写成 `BG_Assistant.exe`，`windeployqt` 会报 `Cannot find file`。
+- `windeployqt` 位于 Qt 的 `bin` 目录（`D:\Programs\Qt\6.9.0\mingw_64\bin`），Qt 命令行快捷方式已将其加入 `PATH`。
+- 目录分发后位置变化，需重新勾选「开机自启」，原因见下节。
+
+---
+
 ## 运行
 
 直接运行 `build\BGAssistant.exe`，程序常驻系统托盘（太极图标）。
