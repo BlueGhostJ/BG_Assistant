@@ -10,8 +10,9 @@ class QTimer;
 // 开发期间未在 ini 中配置时，默认返回写死的密码 "a"。
 QString lockScreenPassword();
 
-// 神隐锁屏：全屏遮罩窗口，保持屏幕原样，屏蔽键盘/鼠标操作，
-// 在键盘上正确输入密码后自动解锁。行为对齐原易语言版。
+// 神隐锁屏：全屏透明窗口，屏幕上不显示任何锁屏组件（保持屏幕原样、肉眼不可见），
+// 屏蔽键盘/鼠标操作；焦点锁定到隐藏的密码框，盲打密码，输入正确即自动解锁。
+// 仅在锁定时弹「已锁定」、解锁时弹「已解锁」提示。行为对齐原易语言版。
 class LockScreen : public QWidget
 {
     Q_OBJECT
@@ -40,7 +41,6 @@ private:
     void *keyboardHook = nullptr;
 
     void setupUI();
-    void refreshBackground();
     void installHooks();
     void removeHooks();
     void doUnlock();

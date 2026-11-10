@@ -11,18 +11,15 @@
 
 #include "lockscreen.h"
 
-#include <QVBoxLayout>
 #include <QApplication>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QMouseEvent>
 #include <QTimer>
 #include <QDebug>
 #include <QGuiApplication>
 #include <QScreen>
-#include <QPainter>
-#include <QPixmap>
+#include <QMouseEvent>
 #include <QSettings>
 #include <QCoreApplication>
 #include <QDir>
@@ -32,7 +29,7 @@
 #  pragma comment(lib, "user32.lib")
 
 // 低级键盘钩子：屏蔽 Win / Ctrl / Alt 及其组合键，
-// 使锁屏期间键盘只能用于输入解锁密码（对齐原易语言版“挂机锁屏蔽键盘实现”）。
+// 使锁屏期间键盘只能用于盲打解锁密码（对齐原易语言版“挂机锁屏蔽键盘实现”）。
 static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode == HC_ACTION) {
@@ -91,6 +88,8 @@ LockScreen::LockScreen() : QWidget(nullptr)
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint |
                    Qt::WindowStaysOnTopHint);
     setAttribute(Qt::WA_DeleteOnClose, false);
+    // 神隐：窗口全透明（透出真实桌面），锁屏期间屏幕上不显示任何锁屏组件。
+    setAttribute(Qt::WA_TranslucentBackground);
     setWindowModality(Qt::ApplicationModal);
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
@@ -122,88 +121,30 @@ LockScreen::~LockScreen()
 
 void LockScreen::setupUI()
 {
-    QVBoxLayout *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0);
-
-    // 锁图标（图片框，对齐原版“图片框1”）
-    QLabel *iconLabel = new QLabel(this);
-    iconLabel->setAlignment(Qt::AlignCenter);
-    iconLabel->setPixmap(QPixmap(QStringLiteral(":/icon/icons/lock.png")));
-    iconLabel->setFixedSize(80, 80);
-    iconLabel->setScaledContents(true);
-
-    QLabel *titleLabel = new QLabel(QStringLiteral("屏幕锁定中。。。"), this);
-    titleLabel->setAlignment(Qt::AlignCenter);
-    titleLabel->setStyleSheet("color: white; font-size: 26px; font-weight: bold; background: transparent;");
-
-    QLabel *hintLabel = new QLabel(QStringLiteral("请输入解锁密码："), this);
-    hintLabel->setAlignment(Qt::AlignCenter);
-    hintLabel->setStyleSheet("color: white; font-size: 15px; background: transparent;");
-
+    // 锁屏期间屏幕上看不到任何组件（神隐）：
+    // 密码框视觉不可见（透明、无边框、透明文字与光标、1x1 放在窗口角落），
+    // 仅作为焦点控件接收盲打输入，输入内容匹配密码时由 textChanged 自动解锁。
     passwordEdit = new QLineEdit(this);
     passwordEdit->setEchoMode(QLineEdit::Password);
-    passwordEdit->setAlignment(Qt::AlignCenter);
     passwordEdit->setFocusPolicy(Qt::StrongFocus);
-    passwordEdit->setMaxLength(32);
     passwordEdit->setStyleSheet(
-        "QLineEdit {"
-        "  color: white; font-size: 18px;"
-        "  background: rgba(0,0,0,140);"
-        "  border: 1px solid gray; border-radius: 6px;"
-        "  padding: 8px; min-width: 220px;"
-        "}"
-        );
+        "QLineEdit { background: transparent; border: none;"
+        " color: transparent; caret-color: transparent;"
+        " selection-background-color: transparent; }");
+    passwordEdit->resize(1, 1);
 
-    QPushButton *unlockButton = new QPushButton(QStringLiteral("解锁"), this);
-    unlockButton->setStyleSheet(
-        "QPushButton {"
-        "  color: white; font-size: 16px;"
-        "  background: rgba(0,100,200,0.8);"
-        "  border-radius: 6px; padding: 8px; min-width: 120px;"
-        "}"
-        "QPushButton:hover { background: rgba(0,120,220,0.9); }"
-        );
-
-    layout->addStretch();
-    layout->addWidget(iconLabel, 0, Qt::AlignCenter);
-    layout->addSpacing(8);
-    layout->addWidget(titleLabel, 0, Qt::AlignCenter);
-    layout->addSpacing(6);
-    layout->addWidget(hintLabel, 0, Qt::AlignCenter);
-    layout->addWidget(passwordEdit, 0, Qt::AlignCenter);
-    layout->addSpacing(12);
-    layout->addWidget(unlockButton, 0, Qt::AlignCenter);
-    layout->addStretch();
-
-    connect(unlockButton, &QPushButton::clicked, this, &LockScreen::attemptUnlock);
-    // 对齐原版“编辑框_解锁密码框_内容被改变”：输入过程中一旦匹配即自动解锁。
     connect(passwordEdit, &QLineEdit::textChanged, this, &LockScreen::onPasswordChanged);
+
+    // 解锁按钮：保留但不可见（原版锁屏界面无任何可见组件），
+    // 仅作为手动解锁的兜底；正常解锁由盲打密码自动触发。
+    QPushButton *unlockButton = new QPushButton(QStringLiteral("解锁"), this);
+    unlockButton->hide();
+    connect(unlockButton, &QPushButton::clicked, this, &LockScreen::attemptUnlock);
 }
 
 void LockScreen::setPassword(const QString &password)
 {
     correctPassword = password;
-}
-
-void LockScreen::refreshBackground()
-{
-    // 保持屏幕原样：抓取当前屏幕作为背景，仅轻微压暗以提示处于锁定状态。
-    QScreen *screen = QGuiApplication::primaryScreen();
-    if (!screen)
-        return;
-
-    QPixmap screenshot = screen->grabWindow(0);
-    QPixmap bg(screenshot.size());
-    bg.fill(Qt::transparent);
-    QPainter painter(&bg);
-    painter.drawPixmap(0, 0, screenshot);
-    painter.fillRect(bg.rect(), QColor(0, 0, 0, 40));
-    painter.end();
-
-    QPalette p;
-    p.setBrush(QPalette::Window, QBrush(bg));
-    setPalette(p);
-    setAutoFillBackground(true);
 }
 
 void LockScreen::installHooks()
@@ -236,8 +177,6 @@ void LockScreen::showLockScreen()
         return;
     }
 
-    // 每次锁定时重新抓取当前屏幕，保证背景与实际屏幕一致。
-    refreshBackground();
     showFullScreen();
     raise();
     activateWindow();
@@ -257,6 +196,7 @@ void LockScreen::showLockScreen()
         SetForegroundWindow(hwnd);
 #endif
 
+        // 焦点锁定到密码框：锁屏期间持续保证键盘输入进入密码框。
         QTimer::singleShot(0, passwordEdit, [this]() {
             passwordEdit->setFocus();
         });
