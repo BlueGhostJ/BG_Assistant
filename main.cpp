@@ -9,7 +9,26 @@
 #include <QTimer>
 #include <QMessageBox>
 #include "configform.h"
+#include "elevation.h"
 #include "lockscreen.h"
+#include "routemanager.h"
+
+// 打开「系统路由管理」：当前进程已是管理员就直接开窗；否则用 runas 拉起一个新进程，
+// 由新进程的 RouteManager 分支显示窗口（对齐原版「管理员运行」+「参数处理」的做法）。
+static void openRouteManager()
+{
+    if (isProcessElevated()) {
+        RouteManagerForm form;
+        form.exec();
+        return;
+    }
+
+    QString error;
+    if (!runAsAdmin(QStringLiteral("RouteManager"), &error) && !error.isEmpty()) {
+        QMessageBox::warning(nullptr, QStringLiteral("系统路由管理"),
+                             QStringLiteral("以管理员身份启动失败：%1").arg(error));
+    }
+}
 
 int main(int argc, char *argv[])
 {
@@ -48,6 +67,21 @@ int main(int argc, char *argv[])
         return app.exec();
     }
 
+    // 系统路由管理子进程：主进程没有管理员权限时，用 runas 重新拉起本程序，
+    // 新进程只显示路由管理窗口、不建托盘，关闭窗口即退出（对齐原版「管理员运行 + 参数处理」）。
+    if (app.arguments().contains(QStringLiteral("RouteManager"))) {
+        if (!isProcessElevated()) {
+            QMessageBox::warning(nullptr, QStringLiteral("系统路由管理"),
+                                 QStringLiteral("未获得管理员权限，无法管理系统路由表。"));
+            return 0;
+        }
+
+        QApplication::setQuitOnLastWindowClosed(true);
+        RouteManagerForm routeManager;
+        routeManager.exec();
+        return 0;
+    }
+
     QApplication::setQuitOnLastWindowClosed(false);
     ensureLockScreenConfig();   // 首次启动时创建「无密码」的 ini 文件
 
@@ -59,6 +93,14 @@ int main(int argc, char *argv[])
         ConfigForm configForm;
         configForm.exec();
     });
+
+    // 「系统」子菜单：系统级工具都收在这里，目前只有系统路由管理
+    QMenu *systemMenu = new QMenu("系统", &trayMenu);
+    QAction *routeManagerAction = new QAction("系统路由管理", systemMenu);
+    QObject::connect(routeManagerAction, &QAction::triggered, []() {
+        openRouteManager();
+    });
+    systemMenu->addAction(routeManagerAction);
 
     QAction *lockAction = new QAction("锁定", &trayMenu);
     QObject::connect(lockAction, &QAction::triggered, []() {
@@ -84,6 +126,8 @@ int main(int argc, char *argv[])
     QObject::connect(quitAction, &QAction::triggered, &app, &QApplication::quit);
 
     trayMenu.addAction(showConfigAction);
+    trayMenu.addSeparator();
+    trayMenu.addMenu(systemMenu);
     trayMenu.addSeparator();
     trayMenu.addAction(lockAction);
     trayMenu.addAction(lockScreenAction);

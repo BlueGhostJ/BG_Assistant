@@ -21,6 +21,17 @@ set(PROJECT_SOURCES
         configform.ui
         lockscreen.cpp
         lockscreen.h
+        routemanager.cpp
+        routemanager.h
+        routemanager.ui
+        routetabledialog.cpp
+        routetabledialog.h
+        routequery.cpp
+        routequery.h
+        ipaddressedit.cpp
+        ipaddressedit.h
+        elevation.cpp
+        elevation.h
         aes.cpp
         aes.h
         resources.qrc
@@ -46,6 +57,12 @@ qt_add_executable(BGAssistant
 )
 
 target_link_libraries(BGAssistant PRIVATE Qt6::Widgets)
+
+# 系统路由管理：iphlpapi 读路由表（GetIpForwardTable2 / GetAdaptersAddresses），
+# elevation 提权用 ShellExecuteExW（MinGW 默认就会带 shell32，显式写上更稳）
+if(WIN32)
+    target_link_libraries(BGAssistant PRIVATE iphlpapi shell32)
+endif()
 
 # 注意这里不能写 if(${QT_VERSION} ...)：变量为空时展开成 if( VERSION_LESS 6.1.0)，
 # CMake 会直接语法报错。

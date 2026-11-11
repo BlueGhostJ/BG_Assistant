@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>RouteManagerForm</class>
+ <widget class="QDialog" name="RouteManagerForm">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>460</width>
+    <height>400</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>440</width>
+    <height>360</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>系统路由管理</string>
+  </property>
+  <layout class="QVBoxLayout" name="mainLayout">
+   <property name="leftMargin">
+    <number>18</number>
+   </property>
+   <property name="topMargin">
+    <number>14</number>
+   </property>
+   <property name="rightMargin">
+    <number>18</number>
+   </property>
+   <property name="bottomMargin">
+    <number>16</number>
+   </property>
+   <property name="spacing">
+    <number>10</number>
+   </property>
+   <item>
+    <layout class="QVBoxLayout" name="hintLayout">
+     <property name="spacing">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QLabel" name="hintLine1Label">
+       <property name="text">
+        <string>当存在多个网卡时，可在此配置发往不同IP段的数据经由不同的网关转发。</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="hintLine2Label">
+       <property name="text">
+        <string>如果你想配置外网网关，IP段请使用0.0.0.0，此时掩码也是0.0.0.0</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QGridLayout" name="contentLayout">
+     <property name="horizontalSpacing">
+      <number>12</number>
+     </property>
+     <property name="verticalSpacing">
+      <number>8</number>
+     </property>
+     <item row="0" column="0">
+      <widget class="QLabel" name="segmentLabel">
+       <property name="text">
+        <string>需要配置的网段</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="IpAddressEdit" name="segmentEdit">
+       <property name="minimumSize">
+        <size>
+         <width>160</width>
+         <height>24</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="maskLabel">
+       <property name="text">
+        <string>该网段的子网掩码</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="IpAddressEdit" name="maskEdit">
+       <property name="minimumSize">
+        <size>
+         <width>160</width>
+         <height>24</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="gatewayLabel">
+       <property name="text">
+        <string>该网段要使用的网关</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="IpAddressEdit" name="gatewayEdit">
+       <property name="minimumSize">
+        <size>
+         <width>160</width>
+         <height>24</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0" colspan="2">
+      <widget class="QCheckBox" name="persistentCheckBox">
+       <property name="text">
+        <string>是否长效路由（若选中，添加的路由规则重启后依然存在）</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="addHintLabel">
+       <property name="text">
+        <string>以上信息填写完后，可点此添加路由→</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <layout class="QHBoxLayout" name="addButtonLayout">
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <item>
+        <spacer name="addButtonSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="addButton">
+         <property name="minimumSize">
+          <size>
+           <width>92</width>
+           <height>26</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>添加路由</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="deleteHintLabel">
+       <property name="text">
+        <string>删除只需填写网段，掩码网关将忽略→</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <layout class="QHBoxLayout" name="deleteButtonLayout">
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <item>
+        <spacer name="deleteButtonSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="deleteButton">
+         <property name="minimumSize">
+          <size>
+           <width>92</width>
+           <height>26</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>删除路由</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="bottomLayout">
+     <item>
+      <spacer name="bottomLeftSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="showTableButton">
+       <property name="minimumSize">
+        <size>
+         <width>300</width>
+         <height>28</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>显示系统路由表</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="bottomRightSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>IpAddressEdit</class>
+   <extends>QWidget</extends>
+   <header>ipaddressedit.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
