@@ -58,6 +58,11 @@ qt_add_executable(BGAssistant
 
 target_link_libraries(BGAssistant PRIVATE Qt6::Widgets)
 
+# AUTOUIC 把 ui_*.h 生成到 build/BGAssistant_autogen/include/，
+# 其中提升控件会写 #include "ipaddressedit.h"。编译器按「包含者所在目录」找，那里是 build 目录，
+# 而 CMake 默认不把源目录放进 include 路径，所以要把源目录显式加进来。
+target_include_directories(BGAssistant PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
 # 系统路由管理：iphlpapi 读路由表（GetIpForwardTable2 / GetAdaptersAddresses），
 # elevation 提权用 ShellExecuteExW（MinGW 默认就会带 shell32，显式写上更稳）
 if(WIN32)
