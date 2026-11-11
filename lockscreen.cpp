@@ -7,6 +7,9 @@
 #  ifndef WIN32_LEAN_AND_MEAN
 #    define WIN32_LEAN_AND_MEAN
 #  endif
+#  ifndef _WIN32_WINNT
+#    define _WIN32_WINNT 0x0601   // Windows 7+，ITaskbarList 接口需要
+#  endif
 #endif
 
 #include "lockscreen.h"
@@ -28,7 +31,25 @@
 
 #ifdef Q_OS_WIN
 #  include <windows.h>
+#  include <shobjidl.h>
 #  pragma comment(lib, "user32.lib")
+#  pragma comment(lib, "ole32.lib")
+#  pragma comment(lib, "uuid.lib")
+
+// 从任务栏移除窗口按钮（用 ITaskbarList::DeleteTab）。
+// 不使用 WS_EX_TOOLWINDOW，因为 tool window 无法被 SetForegroundWindow 带到前台，
+// 会导致键盘焦点丢失、锁屏无法接收密码输入。
+static void removeFromTaskbar(HWND hwnd)
+{
+    ITaskbarList *taskbar = nullptr;
+    HRESULT hr = CoCreateInstance(CLSID_TaskbarList, nullptr, CLSCTX_INPROC_SERVER,
+                                  IID_ITaskbarList, reinterpret_cast<void **>(&taskbar));
+    if (SUCCEEDED(hr) && taskbar) {
+        taskbar->HrInit();
+        taskbar->DeleteTab(hwnd);
+        taskbar->Release();
+    }
+}
 
 // 低级键盘钩子：屏蔽 Win / Ctrl / Alt 及其组合键，
 // 使锁屏期间键盘只能用于盲打解锁密码（对齐原易语言版“挂机锁屏蔽键盘实现”）。
@@ -209,15 +230,13 @@ void LockScreen::showLockScreen()
 #ifdef Q_OS_WIN
     // 记录锁屏前的激活窗口句柄，解锁后恢复焦点（对齐原版 GetForegroundWindow）。
     prevForegroundWindow = reinterpret_cast<void*>(GetForegroundWindow());
-
-    // 先创建原生窗口并加 WS_EX_TOOLWINDOW，让锁屏窗口不出现在任务栏（对齐原版），
-    // 提前设置可避免 show 后任务栏按钮闪现。
-    HWND hwnd = (HWND)winId();
-    SetWindowLongPtr(hwnd, GWL_EXSTYLE,
-                     GetWindowLongPtr(hwnd, GWL_EXSTYLE) | WS_EX_TOOLWINDOW);
 #endif
 
     showFullScreen();
+#ifdef Q_OS_WIN
+    // 从任务栏移除按钮（用 ITaskbarList，不影响窗口焦点）。
+    removeFromTaskbar((HWND)winId());
+#endif
     raise();
     activateWindow();
 
