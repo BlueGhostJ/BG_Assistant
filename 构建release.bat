@@ -7,3 +7,4 @@ if not exist release mkdir release
 copy build\BGAssistant.exe release\
 cd /d release
 windeployqt --release --compiler-runtime BGAssistant.exe
+pause
