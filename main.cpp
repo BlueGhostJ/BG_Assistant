@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
 
     // 「系统」子菜单：系统级工具都收在这里，目前只有系统路由管理
     QMenu *systemMenu = new QMenu("系统", &trayMenu);
-    QAction *routeManagerAction = new QAction("系统路由管理", systemMenu);
+    QAction *routeManagerAction = new QAction("路由管理", systemMenu);
     QObject::connect(routeManagerAction, &QAction::triggered, []() {
         openRouteManager();
     });
