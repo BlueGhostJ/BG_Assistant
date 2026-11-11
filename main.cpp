@@ -108,8 +108,9 @@ int main(int argc, char *argv[])
     SandboxMenu *sandboxMenu = new SandboxMenu(&trayMenu);
     sandboxMenu->refresh();
 
-    // 每次弹出托盘菜单前重新解析 ini：新增/删除沙箱、改 RunCommand 都会立刻反映到菜单里，
-    // 也避免菜单因「没有可启动项」隐藏后，再也点不到「刷新沙箱列表」的死角。
+    // 每次弹出托盘菜单前重新解析 ini：新增/删除沙箱、改 RunCommand 都会立刻反映到菜单里。
+    // 菜单里没有单独的「刷新」项，就靠这里保证内容不过期；若只在启动时解析一次，
+    // 菜单一旦因「没有可启动项」而隐藏，就再也没有入口让它重新出现，只能重启程序。
     QObject::connect(&trayMenu, &QMenu::aboutToShow, sandboxMenu, &SandboxMenu::refresh);
 
     QAction *lockAction = new QAction("锁定", &trayMenu);

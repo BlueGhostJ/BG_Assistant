@@ -24,15 +24,11 @@ void SandboxMenu::refresh()
     // 菜单项全是动态的，整体重建最省事；重建后菜单可能被点开过，故不保留原状态
     clear();
 
-    // 前两项固定在二级菜单最上方，与沙箱项之间用一条分隔线隔开
+    // 固定项只有「显示启动命令」，与沙箱项之间用一条分隔线隔开。
+    // 不再单独做「刷新」项：每次弹出托盘菜单前（trayMenu::aboutToShow）都会重新解析，
+    // 菜单里的内容始终是磁盘上 ini 的当前状态。
     QAction *commandsAction = addAction(QStringLiteral("显示启动命令"));
     connect(commandsAction, &QAction::triggered, this, &SandboxMenu::showCommands);
-
-    QAction *refreshAction = addAction(QStringLiteral("刷新沙箱列表"));
-    // 排队执行：refresh() 里的 clear() 会删掉刚被点击的这个 action，
-    // 直接在它的信号里删自己容易踩到悬空指针，放到事件循环下一轮最稳
-    connect(refreshAction, &QAction::triggered, this, &SandboxMenu::refresh,
-            Qt::QueuedConnection);
 
     if (!m_entries.isEmpty()) {
         addSeparator();

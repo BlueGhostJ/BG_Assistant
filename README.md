@@ -206,7 +206,6 @@ HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
 ```
 沙箱
 ├── 显示启动命令      ← 列出每个沙箱的 名称 → 启动命令（可复制，用于排查）
-├── 刷新沙箱列表      ← 重新解析 ini 并重建菜单
 ├── ────────────
 ├── tabby
 ├── ns_usbloader
@@ -214,7 +213,7 @@ HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
 ```
 
 - 配置文件不存在、或没有任何带 `RunCommand` 的沙箱时，**连「沙箱」一级菜单一起不显示**，托盘上不会出现空菜单。
-- 每次弹出托盘菜单前会重新解析一次 ini，手工改了配置后不用重启；「刷新沙箱列表」是给「想手动确认一下」准备的。
+- 每次弹出托盘菜单前都会重新解析一次 ini，手工改了配置后不用重启，所以菜单里**不设单独的「刷新」项**。
 - 未做映射的 `%BoxRoot%` 子布局原样传给 SandMan，由 Sandboxie 自己展开。
 
 ### 路径映射规则
