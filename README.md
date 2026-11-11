@@ -11,6 +11,7 @@ Windows 桌面助手（Qt 6 / MinGW）。常驻系统托盘，提供开机自启
 | 系统托盘 | 常驻托盘（太极图标动画），左键弹出菜单 |
 | 开机自启 | 写入注册表 `Run` 项，随系统启动 |
 | 系统路由管理 | 以管理员身份添加/删除静态路由，原生表格查看系统路由表（托盘「系统」子菜单） |
+| 沙箱启动 | 解析 `C:\Windows\Sandboxie.ini` 的 `RunCommand`，托盘「沙箱」子菜单一键启动对应沙箱 |
 | 系统锁定 | 调用系统 `LockWorkStation` 锁定 Windows |
 | 神隐锁屏 | 全屏遮屏：屏幕保持原样、肉眼不可见，盲打密码解锁（详见下文） |
 | 锁屏密码 | AES 加密存储于本地 ini，可在设置页修改 |
@@ -123,6 +124,7 @@ imageformats\   styles\   tls\   ...
 | --- | --- |
 | 设置 | 打开设置窗口，可开关「开机自启」「锁屏期间保持屏幕常亮」，修改锁屏密码 |
 | 系统 › 系统路由管理 | 以管理员身份打开系统路由管理窗口（新增） |
+| 沙箱 › &lt;沙箱名&gt; | 启动 Sandboxie 沙箱里配置的程序（解析 `C:\Windows\Sandboxie.ini`） |
 | 锁定 | 调用系统 `LockWorkStation` 锁定 Windows |
 | 遮屏 | 启动神隐锁屏（独立子进程） |
 | 退出 | 结束程序 |
@@ -195,6 +197,54 @@ HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
 
 ---
 
+## 沙箱启动
+
+托盘一级菜单「沙箱」（位于「系统」下方）。菜单内容全部来自 Sandboxie 的全局配置 `C:\Windows\Sandboxie.ini`：每个带 `RunCommand` 的节就是一个可启动的沙箱，菜单项名称即节名（方括号里的文本）。
+
+### 菜单结构
+
+```
+沙箱
+├── 显示启动命令      ← 列出每个沙箱的 名称 → 启动命令（可复制，用于排查）
+├── 刷新沙箱列表      ← 重新解析 ini 并重建菜单
+├── ────────────
+├── tabby
+├── ns_usbloader
+└── ...
+```
+
+- 配置文件不存在、或没有任何带 `RunCommand` 的沙箱时，**连「沙箱」一级菜单一起不显示**，托盘上不会出现空菜单。
+- 每次弹出托盘菜单前会重新解析一次 ini，手工改了配置后不用重启；「刷新沙箱列表」是给「想手动确认一下」准备的。
+- 未做映射的 `%BoxRoot%` 子布局原样传给 SandMan，由 Sandboxie 自己展开。
+
+### 路径映射规则
+
+ini 里的 `RunCommand` 写的是**沙箱内部**的落盘路径，启动前要反向映射回真实路径：
+
+| ini 里的写法 | 实际执行 |
+| --- | --- |
+| `RunCommand=wegame.exe\|"%BoxRoot%\drive\C\Program Files (x86)\WeGame\wegame.exe"` | `SandMan.exe /box:WeGame "C:\Program Files (x86)\WeGame\wegame.exe"` |
+| `RunCommand=Tabby.exe\|"%BoxRoot%\drive\D\Programs\tabby\Tabby.exe"` | `SandMan.exe /box:tabby "D:\Programs\tabby\Tabby.exe"` |
+| `RunCommand=Apifox.exe\|"%BoxRoot%\user\current\AppData\Local\Programs\Apifox\Apifox.exe"` | `SandMan.exe /box:apifox "C:\Users\<用户>\AppData\Local\Programs\Apifox\Apifox.exe"` |
+| `RunCommand=WinMergeU.exe\|"D:\Programs\WinMerge\WinMergeU.exe"` | `SandMan.exe /box:WinMerge "D:\Programs\WinMerge\WinMergeU.exe"`（本来就是真实路径，原样使用） |
+
+即：
+
+- `%BoxRoot%\drive\<盘符>\<其余>` → `<盘符>:\<其余>`
+- `%BoxRoot%\user\current\<其余>` → `<当前用户目录>\<其余>`
+- 不带 `%BoxRoot%` 的路径 → 原样使用
+
+完整命令行格式：`"<SandMan.exe 路径>" /box:<沙箱名> "<映射后的程序路径>"`。
+
+### 实现要点
+
+- `SandMan.exe` 依次在 `%ProgramW6432%`、`%ProgramFiles%`、`%ProgramFiles(x86)%` 下的 `Sandboxie-Plus\` / `Sandboxie\` 里查找，找不到时按默认路径 `C:\Program Files\Sandboxie-Plus\SandMan.exe` 启动并弹提示。
+- ini 编码自动识别：带 BOM 的 UTF-16 LE/BE、无 BOM 的 UTF-16、UTF-8，最后回退到系统本地编码（简中为 GBK）。**Sandboxie 默认写的是 UTF-16 LE**，按 UTF-8 硬读会全是乱码。
+- 启动用 `QProcess::startDetached` 传参数列表，路径里的空格不需要手工转义；展示用的命令行与实际参数一一对应。
+- 同一沙箱写了多条 `RunCommand` 时，以最后一条为准（与 ini 的覆盖语义一致）。
+
+---
+
 ## 注意事项
 
 - **神隐锁屏不是安全锁。** 它用于防止他人误操作键盘/鼠标，无法阻止任务管理器结束进程、`Ctrl+Alt+Del`、`Win+L` 等系统级操作；多显示器环境下目前仅覆盖主屏。
@@ -216,6 +266,8 @@ HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
 ├── routemanager.*      系统路由管理窗口（添加/删除路由）
 ├── routetabledialog.*  系统路由表窗口（原生表格显示）
 ├── routequery.*        读取 IPv4 路由表（IP Helper API + 长效路由注册表）
+├── sandboxie.*         解析 Sandboxie.ini、路径映射、启动沙箱
+├── sandboxmenu.*       托盘「沙箱」菜单（含「显示启动命令」窗口）
 ├── ipaddressedit.*     仿系统 IP 地址控件的四段输入框
 ├── elevation.*         管理员提权（ShellExecuteEx runas）
 ├── aes.*               AES-ECB 加密（纯 C++ 实现，无外部依赖）

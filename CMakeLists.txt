@@ -28,6 +28,10 @@ set(PROJECT_SOURCES
         routetabledialog.h
         routequery.cpp
         routequery.h
+        sandboxie.cpp
+        sandboxie.h
+        sandboxmenu.cpp
+        sandboxmenu.h
         ipaddressedit.cpp
         ipaddressedit.h
         elevation.cpp

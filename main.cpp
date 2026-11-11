@@ -12,6 +12,7 @@
 #include "elevation.h"
 #include "lockscreen.h"
 #include "routemanager.h"
+#include "sandboxmenu.h"
 
 // 打开「系统路由管理」：当前进程已是管理员就直接开窗；否则用 runas 拉起一个新进程，
 // 由新进程的 RouteManager 分支显示窗口（对齐原版「管理员运行」+「参数处理」的做法）。
@@ -102,6 +103,15 @@ int main(int argc, char *argv[])
     });
     systemMenu->addAction(routeManagerAction);
 
+    // 「沙箱」一级菜单：紧跟在「系统」下方，内容来自 C:\Windows\Sandboxie.ini 的 RunCommand。
+    // 构造后立刻解析一次，文件不存在或没有可启动项时菜单自己隐藏，这里不用再判断。
+    SandboxMenu *sandboxMenu = new SandboxMenu(&trayMenu);
+    sandboxMenu->refresh();
+
+    // 每次弹出托盘菜单前重新解析 ini：新增/删除沙箱、改 RunCommand 都会立刻反映到菜单里，
+    // 也避免菜单因「没有可启动项」隐藏后，再也点不到「刷新沙箱列表」的死角。
+    QObject::connect(&trayMenu, &QMenu::aboutToShow, sandboxMenu, &SandboxMenu::refresh);
+
     QAction *lockAction = new QAction("锁定", &trayMenu);
     QObject::connect(lockAction, &QAction::triggered, []() {
         QProcess::startDetached("rundll32.exe", QStringList() << "user32.dll,LockWorkStation");
@@ -128,6 +138,7 @@ int main(int argc, char *argv[])
     trayMenu.addAction(showConfigAction);
     trayMenu.addSeparator();
     trayMenu.addMenu(systemMenu);
+    trayMenu.addMenu(sandboxMenu);
     trayMenu.addSeparator();
     trayMenu.addAction(lockAction);
     trayMenu.addAction(lockScreenAction);
