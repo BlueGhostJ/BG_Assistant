@@ -2,6 +2,7 @@
 #define LOCKSCREEN_H
 
 #include <QWidget>
+#include <QColor>
 
 class QTimer;
 class QKeyEvent;
@@ -61,7 +62,7 @@ private:
     void removeHooks();
     void doUnlock();
     void keepScreenOn(bool on);
-    void showToast(const QString &text);
+    void showToast(const QString &text, const QColor &color);
 };
 
 #endif // LOCKSCREEN_H

@@ -233,7 +233,7 @@ void LockScreen::showLockScreen()
         BringWindowToTop(hwnd);
 #endif
 
-        showToast(QStringLiteral("已锁定"));
+        showToast(QStringLiteral("已锁定"), QColor(255, 0, 0));
         qDebug() << "锁屏已激活 - 键盘+鼠标已捕获";
     });
 }
@@ -353,8 +353,12 @@ void LockScreen::doUnlock()
     }
 #endif
 
-    showToast(QStringLiteral("已解锁"));
-    emit unlocked();
+    showToast(QStringLiteral("已解锁"), QColor(0, 255, 0));
+    // 延迟退出：让「已解锁」提示完整显示后再发出解锁信号、由调用方退出进程，
+    // 否则立即 quit 会导致提示一闪而过甚至完全看不到。
+    QTimer::singleShot(1000, this, [this]() {
+        emit unlocked();
+    });
     qDebug() << "解锁成功";
 }
 
@@ -370,7 +374,7 @@ void LockScreen::keepScreenOn(bool on)
 #endif
 }
 
-void LockScreen::showToast(const QString &text)
+void LockScreen::showToast(const QString &text, const QColor &color)
 {
     QLabel *toast = new QLabel(text, nullptr);
     toast->setAttribute(Qt::WA_DeleteOnClose);
@@ -380,8 +384,8 @@ void LockScreen::showToast(const QString &text)
     toast->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool);
     toast->setAlignment(Qt::AlignCenter);
     toast->setStyleSheet(
-        "background: rgba(0,0,0,160); color: white; font-size: 30px;"
-        " border-radius: 10px; padding: 14px 28px;");
+        QStringLiteral("background: rgba(0,0,0,160); color: %1; font-size: 48px; font-weight: bold;"
+                       " border-radius: 12px; padding: 16px 36px;").arg(color.name()));
     toast->adjustSize();
 
     QScreen *screen = QGuiApplication::primaryScreen();
