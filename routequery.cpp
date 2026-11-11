@@ -176,7 +176,6 @@ bool queryIpv4Routes(QVector<RouteEntry> *routes, QString *error)
         entry.interfaceAddress = info.address;
 
         entry.metric = quint32(row.Metric);
-        entry.protocol = quint32(row.Protocol);
         entry.persistent = persistentRoutes.contains(
             QStringLiteral("%1|%2|%3").arg(entry.destination, entry.mask, entry.gateway));
 

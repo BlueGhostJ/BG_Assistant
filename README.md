@@ -188,7 +188,7 @@ HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
 | --- | --- | --- |
 | 执行命令 | `cmd.exe /c route ...`，会闪控制台窗口 | 直接调用 `route.exe`，`CREATE_NO_WINDOW` 隐藏窗口 |
 | 结果校验 | `route print > %temp%\RoutePrint.txt` 再读文本 | `GetIpForwardTable2` 直接查路由表，不产生临时文件 |
-| 显示路由表 | 导出 `%temp%\RoutePrint.txt`，用 Notepad++ 打开 | 原生「系统路由表」窗口：目标网络 / 掩码 / 网关 / 接口 / 跃点数 / 类型 / 长效，可刷新 |
+| 显示路由表 | 导出 `%temp%\RoutePrint.txt`，用 Notepad++ 打开 | 原生「系统路由表」窗口：目标网络 / 掩码 / 网关 / 接口 / 跃点数 / 长效，可刷新 |
 | 退出清理 | 关闭窗口时删除临时文件 | 没有临时文件 |
 
 「系统路由表」窗口里的「在链路上」等价于 `route print` 的 `On-link`（网关为 `0.0.0.0` 的直连网段）。

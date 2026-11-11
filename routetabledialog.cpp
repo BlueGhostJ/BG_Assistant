@@ -21,30 +21,9 @@ enum Column
     ColumnGateway,
     ColumnInterface,
     ColumnMetric,
-    ColumnType,
     ColumnPersistent,
     ColumnCount
 };
-
-// NL_ROUTE_PROTOCOL（MIB_IPPROTO_*）。这里直接写数值，避免不同 SDK 里宏名不一致导致编译失败。
-QString protocolText(quint32 protocol)
-{
-    switch (protocol) {
-    case 2:
-        return QStringLiteral("本地");        // MIB_IPPROTO_LOCAL：本机地址/广播
-    case 3:
-        return QStringLiteral("手动");        // MIB_IPPROTO_NETMGMT：route add 或 DHCP 下发
-    case 4:
-        return QStringLiteral("ICMP 重定向");  // MIB_IPPROTO_ICMP
-    case 10002:
-        return QStringLiteral("自动");        // MIB_IPPROTO_NT_AUTOSTATIC
-    case 10006:
-    case 10007:
-        return QStringLiteral("静态");        // MIB_IPPROTO_NT_STATIC(_NON_DOD)
-    default:
-        return QStringLiteral("系统");
-    }
-}
 
 } // namespace
 
@@ -71,7 +50,6 @@ RouteTableDialog::RouteTableDialog(QWidget *parent)
                                         QStringLiteral("网关"),
                                         QStringLiteral("接口"),
                                         QStringLiteral("跃点数"),
-                                        QStringLiteral("类型"),
                                         QStringLiteral("长效")});
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -90,7 +68,6 @@ RouteTableDialog::RouteTableDialog(QWidget *parent)
     m_table->setColumnWidth(ColumnMask, 140);
     m_table->setColumnWidth(ColumnGateway, 130);
     m_table->setColumnWidth(ColumnMetric, 70);
-    m_table->setColumnWidth(ColumnType, 100);
     m_table->setColumnWidth(ColumnPersistent, 60);
     m_table->horizontalHeader()->setSectionResizeMode(ColumnInterface, QHeaderView::Stretch);
 
@@ -141,7 +118,6 @@ void RouteTableDialog::refresh()
             entry.gateway == QLatin1String("0.0.0.0") ? QStringLiteral("在链路上") : entry.gateway,
             interfaceText,
             QString::number(entry.metric),
-            protocolText(entry.protocol),
             entry.persistent ? QStringLiteral("是") : QString(),
         };
 

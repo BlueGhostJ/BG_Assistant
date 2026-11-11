@@ -13,7 +13,6 @@ struct RouteEntry
     QString interfaceName;      // 网卡名称，如「以太网」
     QString interfaceAddress;   // 网卡 IPv4 地址
     quint32 metric = 0;         // 跃点数
-    quint32 protocol = 0;       // NL_ROUTE_PROTOCOL，用于显示路由来源
     bool persistent = false;    // 是否为长效路由（route add -p 写入注册表的那种）
 };
 
