@@ -7,9 +7,11 @@
 #include <QHash>
 #include <QProcess>
 #include <QRegularExpression>
+#include <QSet>
 #include <QStringConverter>
 #include <QStringDecoder>
 
+#include <algorithm>
 #include <utility>
 
 namespace {
@@ -155,8 +157,10 @@ QList<SandboxEntry> Sandboxie::loadEntries(const QString &iniPath)
     file.close();
 
     QString section;
-    // 小写节名 → entries 下标：同一个沙箱写了多条 RunCommand 时，以后者为准
-    QHash<QString, qsizetype> positions;
+    // 小写节名 → 该节的 RunCommand 条数：决定菜单项要不要带上键名
+    QHash<QString, int> commandsPerBox;
+    // 同节 / 同键 / 同路径的重复行只留一条，避免菜单里出现两个一模一样的项
+    QSet<QString> seenLines;
 
     const QStringList lines =
         text.split(QRegularExpression(QStringLiteral("[\r\n]")), Qt::SkipEmptyParts);
@@ -194,6 +198,13 @@ QList<SandboxEntry> Sandboxie::loadEntries(const QString &iniPath)
         if (rawPath.isEmpty())
             continue;
 
+        const QString boxKey = section.toLower();
+        const QString lineKey = boxKey + QLatin1Char('\n') + program.toLower()
+                                + QLatin1Char('\n') + rawPath.toLower();
+        if (seenLines.contains(lineKey))
+            continue;
+        seenLines.insert(lineKey);
+
         SandboxEntry entry;
         entry.boxName = section;
         entry.program = program;
@@ -202,14 +213,35 @@ QList<SandboxEntry> Sandboxie::loadEntries(const QString &iniPath)
         entry.commandLine = QStringLiteral("\"%1\" /box:%2 \"%3\"")
                                 .arg(sandManPath(), entry.boxName, entry.targetPath);
 
-        const auto existing = positions.constFind(section.toLower());
-        if (existing != positions.constEnd()) {
-            entries[*existing] = entry;
-        } else {
-            positions.insert(section.toLower(), entries.size());
-            entries.append(entry);
-        }
+        commandsPerBox[boxKey] += 1;
+        entries.append(entry);
     }
+
+    // 一个节里有多条 RunCommand 时，只用沙箱名会让菜单里出现多个同名项，
+    // 这时改成「沙箱名|键名」；键名缺失（RunCommand 只写了路径）就退回可执行文件名。
+    for (SandboxEntry &entry : entries) {
+        if (commandsPerBox.value(entry.boxName.toLower()) <= 1) {
+            entry.menuTitle = entry.boxName;
+            continue;
+        }
+
+        QString key = entry.program;
+        if (key.isEmpty())
+            key = QFileInfo(entry.targetPath).fileName();
+        if (key.isEmpty())
+            key = QStringLiteral("RunCommand");
+        entry.menuTitle = entry.boxName + QLatin1Char('|') + key;
+    }
+
+    // 字母序（忽略大小写）：先按沙箱名，同一沙箱的多条再按键名。
+    // 用 stable_sort，名字完全相同（仅大小写不同）时保持 ini 里的先后顺序。
+    std::stable_sort(entries.begin(), entries.end(),
+                     [](const SandboxEntry &a, const SandboxEntry &b) {
+                         const int byBox = a.boxName.compare(b.boxName, Qt::CaseInsensitive);
+                         if (byBox != 0)
+                             return byBox < 0;
+                         return a.menuTitle.compare(b.menuTitle, Qt::CaseInsensitive) < 0;
+                     });
 
     return entries;
 }

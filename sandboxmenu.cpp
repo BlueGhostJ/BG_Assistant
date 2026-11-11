@@ -33,7 +33,7 @@ void SandboxMenu::refresh()
     if (!m_entries.isEmpty()) {
         addSeparator();
         for (const SandboxEntry &entry : m_entries) {
-            QAction *action = addAction(entry.boxName);
+            QAction *action = addAction(entry.menuTitle);
             action->setToolTip(entry.commandLine);   // 悬停可预览完整命令行，便于排查
             connect(action, &QAction::triggered, this, [this, entry]() { launchEntry(entry); });
         }
@@ -58,7 +58,7 @@ void SandboxMenu::showCommands() const
                                          ? entry.rawPath
                                          : entry.program + QLatin1Char('|') + entry.rawPath;
             lines << QString()
-                  << QStringLiteral("[%1]").arg(entry.boxName)
+                  << QStringLiteral("[%1]").arg(entry.menuTitle)
                   << QStringLiteral("  ini : %1").arg(iniValue)
                   << QStringLiteral("  cmd : %1").arg(entry.commandLine);
         }

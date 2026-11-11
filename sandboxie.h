@@ -4,7 +4,7 @@
 #include <QList>
 #include <QString>
 
-// 一个沙箱的启动配置：来自 Sandboxie.ini 某个节里的 RunCommand。
+// 一个沙箱的启动配置：来自 Sandboxie.ini 某个节里的一条 RunCommand。
 //
 // 配置文件里的写法是「键|路径」，路径落在沙箱内部布局上，例：
 //     RunCommand=wegame.exe|"%BoxRoot%\drive\C\Program Files (x86)\WeGame\wegame.exe"
@@ -13,6 +13,8 @@
 struct SandboxEntry
 {
     QString boxName;      // 节名，即沙箱名（方括号内的文本）
+    QString menuTitle;    // 菜单项显示名：该节只有一条 RunCommand 时就是沙箱名，
+                          // 有多条时是「沙箱名|键名」，否则同名项分不清
     QString program;      // RunCommand 竖线前的键（可执行文件名），仅用于展示排查
     QString rawPath;      // 竖线后的原始路径，未做任何映射
     QString targetPath;   // 映射到真实文件系统后的程序路径
@@ -27,7 +29,8 @@ QString iniPath();
 // SandMan.exe 路径：在常见安装位置里找，都找不到时返回默认路径，交由启动时报错
 QString sandManPath();
 
-// 解析 ini，按出现顺序返回所有带 RunCommand 的沙箱。
+// 解析 ini，返回所有带 RunCommand 的沙箱，按沙箱名字母序排列（忽略大小写）。
+// 一个节里有多条 RunCommand 时，它们会聚在一起连续出现，menuTitle 带上键名区分。
 // 文件不存在/读不出内容时返回空列表，调用方据此隐藏菜单。
 QList<SandboxEntry> loadEntries(const QString &iniPath);
 

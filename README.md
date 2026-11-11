@@ -199,7 +199,7 @@ HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
 
 ## 沙箱启动
 
-托盘一级菜单「沙箱」（位于「系统」下方）。菜单内容全部来自 Sandboxie 的全局配置 `C:\Windows\Sandboxie.ini`：每个带 `RunCommand` 的节就是一个可启动的沙箱，菜单项名称即节名（方括号里的文本）。
+托盘一级菜单「沙箱」（位于「系统」下方）。菜单内容全部来自 Sandboxie 的全局配置 `C:\Windows\Sandboxie.ini`：每个 `RunCommand` 就是一条可启动项，一个节只写了一条时菜单项就是节名（方括号里的文本），写了多条时用 `节名|键名` 区分。
 
 ### 菜单结构
 
@@ -207,11 +207,16 @@ HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
 沙箱
 ├── 显示启动命令      ← 列出每个沙箱的 名称 → 启动命令（可复制，用于排查）
 ├── ────────────
-├── tabby
+├── apifox
+├── LocalSend
 ├── ns_usbloader
-└── ...
+├── tabby
+├── WeGame
+└── WinMerge
 ```
 
+- 沙箱项**按名字字母序排列（忽略大小写）**，与 ini 里的书写顺序无关；同一个沙箱的多条 `RunCommand` 聚在一起，再按键名排序。
+- 一个沙箱只配了一条 `RunCommand` 时，菜单项就是沙箱名；配了多条时显示为 `沙箱名|键名`（键名即 `RunCommand=` 后面竖线前那段，例如 `WeGame|wegame.exe`），否则菜单里会出现多个同名项分不清。
 - 配置文件不存在、或没有任何带 `RunCommand` 的沙箱时，**连「沙箱」一级菜单一起不显示**，托盘上不会出现空菜单。
 - 每次弹出托盘菜单前都会重新解析一次 ini，手工改了配置后不用重启，所以菜单里**不设单独的「刷新」项**。
 - 未做映射的 `%BoxRoot%` 子布局原样传给 SandMan，由 Sandboxie 自己展开。
@@ -240,7 +245,8 @@ ini 里的 `RunCommand` 写的是**沙箱内部**的落盘路径，启动前要�
 - `SandMan.exe` 依次在 `%ProgramW6432%`、`%ProgramFiles%`、`%ProgramFiles(x86)%` 下的 `Sandboxie-Plus\` / `Sandboxie\` 里查找，找不到时按默认路径 `C:\Program Files\Sandboxie-Plus\SandMan.exe` 启动并弹提示。
 - ini 编码自动识别：带 BOM 的 UTF-16 LE/BE、无 BOM 的 UTF-16、UTF-8，最后回退到系统本地编码（简中为 GBK）。**Sandboxie 默认写的是 UTF-16 LE**，按 UTF-8 硬读会全是乱码。
 - 启动用 `QProcess::startDetached` 传参数列表，路径里的空格不需要手工转义；展示用的命令行与实际参数一一对应。
-- 同一沙箱写了多条 `RunCommand` 时，以最后一条为准（与 ini 的覆盖语义一致）。
+- 同一沙箱写了多条 `RunCommand` 时，每条都是独立的菜单项（名称加 `|键名` 后缀），不会互相覆盖；完全相同的重复行（同节、同键、同路径）只保留一条。
+- 排序用 `std::stable_sort` + `Qt::CaseInsensitive` 比较：仅大小写不同的名字保持 ini 里的先后顺序。
 
 ---
 
