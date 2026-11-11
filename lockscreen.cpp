@@ -209,6 +209,12 @@ void LockScreen::showLockScreen()
 #ifdef Q_OS_WIN
     // 记录锁屏前的激活窗口句柄，解锁后恢复焦点（对齐原版 GetForegroundWindow）。
     prevForegroundWindow = reinterpret_cast<void*>(GetForegroundWindow());
+
+    // 先创建原生窗口并加 WS_EX_TOOLWINDOW，让锁屏窗口不出现在任务栏（对齐原版），
+    // 提前设置可避免 show 后任务栏按钮闪现。
+    HWND hwnd = (HWND)winId();
+    SetWindowLongPtr(hwnd, GWL_EXSTYLE,
+                     GetWindowLongPtr(hwnd, GWL_EXSTYLE) | WS_EX_TOOLWINDOW);
 #endif
 
     showFullScreen();
