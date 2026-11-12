@@ -56,36 +56,37 @@ mingw32-make --version
 ### 3. 配置并编译
 
 ```bat
-cmake -B build -G "MinGW Makefiles" ^
+cmake -B build-dynamic -G "MinGW Makefiles" ^
       -DCMAKE_PREFIX_PATH=D:\Programs\Qt\6.9.0\mingw_64 ^
       -DCMAKE_BUILD_TYPE=Release
 
-cmake --build build
+cmake --build build-dynamic
 ```
 
 参数说明：
 
 - `-DCMAKE_PREFIX_PATH`：指向 Qt 的 **kit 目录**（`6.9.0\mingw_64`），不是 `Tools\` 下的目录，用于让 CMake 找到 `Qt6Config.cmake`。
 - `-DCMAKE_BUILD_TYPE`：`MinGW Makefiles` 属于单配置生成器，构建类型必须在配置阶段指定。
+- 构建目录叫 `build-dynamic`（动态构建用），**静态构建用 `build\`**，两套缓存互不覆盖，详见「静态构建」一节。
 
-编译产物：`build\BGAssistant.exe`
+编译产物：`build-dynamic\BGAssistant.exe`
 
 ### 4. 重新构建
 
-若此前配置失败过，`build` 目录中可能残留错误的 `CMakeCache.txt`，先清理再重新配置：
+若此前配置失败过，`build-dynamic` 目录中可能残留错误的 `CMakeCache.txt`，先清理再重新配置：
 
 ```bat
-rmdir /s /q build
+rmdir /s /q build-dynamic
 ```
 
 ---
 
-## 部署（打包为独立目录）
+## 部署（动态构建：打包为独立目录）
 
 编译产出的 exe 依赖 Qt 的动态库，直接拷到没装 Qt 的机器上无法运行。用 `windeployqt` 把所需的 DLL 与插件复制到 exe 同级目录：
 
 ```bat
-cd /d D:\Workspaces\BG_Assistant\build
+cd /d D:\Workspaces\BG_Assistant\build-dynamic
 windeployqt --release --compiler-runtime BGAssistant.exe
 ```
 
@@ -94,7 +95,7 @@ windeployqt --release --compiler-runtime BGAssistant.exe
 - `--release`：复制 Release 版 Qt 库。若构建的是 Debug 版本，改用 `--debug`。
 - `--compiler-runtime`：连同 MinGW 运行时（`libgcc_s_seh-1.dll`、`libstdc++-6.dll`、`libwinpthread-1.dll`）一并复制。缺少它们时，程序在干净的机器上会直接启动失败，且往往没有明确报错。
 
-执行后 `build\` 目录会补入：
+执行后 `build-dynamic\` 目录会补入：
 
 ```
 BGAssistant.exe
@@ -104,7 +105,7 @@ platforms\qwindows.dll
 imageformats\   styles\   tls\   ...
 ```
 
-整个 `build\` 目录即可作为免安装的绿色包分发。
+整个 `build-dynamic\` 目录即可作为免安装的绿色包分发。
 
 注意事项：
 
@@ -114,9 +115,124 @@ imageformats\   styles\   tls\   ...
 
 ---
 
+## 静态构建（单文件 exe）
+
+动态构建的产物要带一堆 Qt DLL。想分发单个 exe，就走静态链接：先把 Qt 用 `-static` 编一份，之后 CMake 指向它，链出来的 exe 自带 Qt 与 MinGW 运行时，**不需要 `windeployqt`，也不需要任何 DLL**。
+
+### 用法
+
+1. 按下一节「编译静态 Qt」把静态 Qt 装到 `D:\Qt\6.9.0-static`（**只做一次**）；
+2. 双击 `构建static.bat`，等价于：
+
+```bat
+cmake -B build -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=D:\Qt\6.9.0-static -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
+
+产物：`release-static\BGAssistant.exe`，单文件直接分发，约 12～16 MB。
+
+### 构建目录约定
+
+| 目录 | 内容 | 由谁使用 |
+| --- | --- | --- |
+| `build\` | 静态构建缓存 | `构建static.bat` |
+| `build-dynamic\` | 动态构建缓存 | `构建release.bat` |
+| `release\` | 动态构建的绿色包（含 DLL） | `构建release.bat` |
+| `release-static\` | 静态构建的单文件 exe | `构建static.bat` |
+
+CMake 缓存与 Qt 的 prefix 绑定，两个 build 目录不要混用，否则每次切换都要全量重新配置。
+
+### CMake 里的静态分支
+
+`CMakeLists.txt` 通过 `Qt6::Core` 的 `TYPE` 判断是否为静态 Qt，静态时自动补两件事：
+
+```cmake
+get_target_property(_qt_core_lib_type Qt6::Core TYPE)
+if(_qt_core_lib_type STREQUAL "STATIC_LIBRARY")
+    qt_import_plugins(BGAssistant INCLUDE Qt6::QWindowsIntegrationPlugin)  # 平台插件不会被自动链入
+    if(MINGW)
+        target_link_options(BGAssistant PRIVATE -static)                   # 连 GCC 运行时一起静态链
+    endif()
+endif()
+```
+
+两处缺一不可：少了 `qt_import_plugins`，程序启动直接报 `could not find or load the Qt platform plugin "windows"`；少了 `-static`，exe 旁边仍会多出 `libstdc++-6.dll` / `libgcc_s_seh-1.dll` / `libwinpthread-1.dll`。
+
+### 代价
+
+- 静态 Qt **只有 Release 库**，用 gdb 调试时看不到 Qt 内部符号（自己的代码断点正常）。要步进 Qt 源码得再编一份 debug 静态库，又多 1～2 GB。
+- 换 MinGW 版本必须重编 Qt（ABI 变了）。
+- 链接比动态慢几秒（要从静态库里抽取目标文件并做 dead-code 消除）。
+
+---
+
+## 编译静态 Qt
+
+只需做一次。**用 Qt 自带的 MinGW 13.1.0 编译**，保证与后续构建 ABI 一致。
+
+### 1. 准备源码
+
+源码在 Qt 安装包的 `Src` 目录（安装时勾选 Sources）；没有就用 `MaintenanceTool` 补装，或从 <https://download.qt.io/official_releases/qt/> 下载 `qt-everywhere-src-6.9.0.zip` 解压，例如到 `D:\Programs\Qt\6.9.0\Src`。
+
+### 2. 打开 Qt 命令行并补 PATH
+
+用开始菜单的 **「Qt 6.9.0 (MinGW 13.1.0 64-bit)」** 快捷方式打开 cmd，再执行：
+
+```bat
+for /d %i in ("D:\Programs\Qt\Tools\mingw*") do @set "PATH=%~i\bin;%PATH%"
+set "PATH=D:\Programs\Qt\Tools\CMake_64\bin;%PATH%"
+```
+
+### 3. 配置（在单独的空构建目录里）
+
+```bat
+mkdir D:\Qt\build-static-690
+cd /d D:\Qt\build-static-690
+
+D:\Programs\Qt\6.9.0\Src\configure.bat -static -static-runtime -release -opensource ^
+  -confirm-license -nomake examples -nomake tests ^
+  -skip qtwebengine -skip qtdeclarative -skip qtmultimedia -skip qt3d ^
+  -skip qtcharts -skip qttools -skip qtquick3d -skip qtquicktimeline ^
+  -prefix D:\Qt\6.9.0-static
+```
+
+参数说明：
+
+- `-static`：产出静态库（`.a`），这是单文件 exe 的前提。
+- `-static-runtime`：Qt 自身也静态链接 MinGW 运行时。
+- `-opensource -confirm-license`：开源版并跳过交互式许可确认。
+- `-skip ...`：本项目只用 Widgets（`qtbase`），把用不到的大模块排掉，编译时间从 1～3 小时降到 **20～40 分钟**。
+- `-prefix`：安装目录，`构建static.bat` 里的 `QT_STATIC` 默认指向这里。
+
+### 4. 编译并安装
+
+```bat
+mingw32-make -j8
+mingw32-make install
+```
+
+`-j8` 按 CPU 核心数调整。装完 `D:\Qt\6.9.0-static` 约 1～2 GB，中间目录 `build-static-690` 可以直接删掉。
+
+### 5. 验证
+
+存在下面这个文件即成功，接着跑 `构建static.bat`：
+
+```bat
+dir D:\Qt\6.9.0-static\lib\cmake\Qt6\Qt6Config.cmake
+```
+
+### 注意
+
+- 编译期间源码 + 中间文件约占 10～15 GB，别放在剩余空间紧张的盘。
+- 静态 Qt 与动态 Qt 可共存，互不影响；但「静态 Qt 与编译器」必须配对，换编译器就得重编。
+- 只编一次：之后改项目代码不会重编 Qt，除非换 Qt 版本、换编译器或改 `configure` 参数。
+- 漏了 `-static-runtime`（Qt 侧）或 `-static`（项目侧），exe 仍会带出三个 MinGW 运行时 DLL。
+
+---
+
 ## 运行
 
-直接运行 `build\BGAssistant.exe`，程序常驻系统托盘（太极图标）。
+直接运行 `build-dynamic\BGAssistant.exe`（动态构建）或 `release-static\BGAssistant.exe`（静态单文件），程序常驻系统托盘（太极图标）。
 
 托盘左键单击弹出菜单：
 
@@ -137,7 +253,7 @@ imageformats\   styles\   tls\   ...
 HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
 ```
 
-**注意**：写入的是当前运行中 exe 的绝对路径。若从 `build\` 目录勾选，之后移动或删除该目录，自启项会失效，需重新勾选。
+**注意**：写入的是当前运行中 exe 的绝对路径。若从 `build-dynamic\` 目录勾选，之后移动或删除该目录，自启项会失效，需重新勾选。
 
 ---
 
@@ -262,8 +378,12 @@ ini 里的 `RunCommand` 写的是**沙箱内部**的落盘路径，启动前要�
 
 ```
 .
-├── CMakeLists.txt      构建配置
+├── CMakeLists.txt      构建配置（含静态 Qt 分支）
 ├── app.rc.in           exe 图标资源模板（由 CMake 生成 app.rc）
+├── 构建release.bat     动态构建（build-dynamic + windeployqt）
+├── 构建static.bat      静态构建（build + 单文件 exe）
+├── 更新git代码.bat     git pull 拉取更新
+├── LICENSE             GPLv3 许可证全文
 ├── main.cpp            程序入口、托盘与菜单、锁屏子进程分支
 ├── mainwindow.*        主窗口（预留，当前未显示）
 ├── configform.*        设置窗口（开机自启、锁屏常亮、锁屏密码）
@@ -279,3 +399,38 @@ ini 里的 `RunCommand` 写的是**沙箱内部**的落盘路径，启动前要�
 ├── resources.qrc       图标资源清单
 └── icons/              图标资源
 ```
+
+---
+
+## 许可证
+
+本项目采用 **GNU General Public License v3.0（GPLv3）** 发布，全文见仓库根目录的 [LICENSE](LICENSE)。
+
+```
+BG_Assistant
+Copyright (C) 2026 BlueGhostJ
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+```
+
+### 为什么是 GPLv3
+
+- 本项目基于 **Qt 6**，其开源版以 GPLv3 / LGPLv3 双许可提供。**静态构建（`构建static.bat`）把 Qt 直接链进 exe**，属于分发二进制，选 GPLv3 是与之最省心的组合（另一条路是动态链接 + 满足 LGPLv3）。
+- 若你打算以 LGPLv3 方式使用 Qt 而不公开源码，请改回动态构建，并遵守 LGPLv3 关于替换 Qt 库的要求。
+
+### 再分发时注意
+
+- 分发 exe 时**同时提供本仓库源码**（或书面提供源码的途径），这是 GPLv3 的核心义务。
+- 不得附加额外限制条款；修改后的版本同样以 GPLv3 发布。
+- 若从他人处获得修改版，对方同样受 GPLv3 约束。

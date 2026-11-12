@@ -62,6 +62,19 @@ qt_add_executable(BGAssistant
 
 target_link_libraries(BGAssistant PRIVATE Qt6::Widgets)
 
+# 静态构建（见 README「编译静态 Qt」+ 构建static.bat）要额外处理两件事，
+# 动态构建走不到这里，可忽略：
+#   1) 静态 Qt 不会自动把平台插件链进 exe，缺了它程序启动就报
+#      "could not find or load the Qt platform plugin windows"；
+#   2) MinGW 下必须整体静态链接，否则仍会带出 libstdc++ / libgcc / libwinpthread 三个 DLL。
+get_target_property(_qt_core_lib_type Qt6::Core TYPE)
+if(_qt_core_lib_type STREQUAL "STATIC_LIBRARY")
+    qt_import_plugins(BGAssistant INCLUDE Qt6::QWindowsIntegrationPlugin)
+    if(MINGW)
+        target_link_options(BGAssistant PRIVATE -static)
+    endif()
+endif()
+
 # AUTOUIC 把 ui_*.h 生成到 build/BGAssistant_autogen/include/，
 # 其中提升控件会写 #include "ipaddressedit.h"。编译器按「包含者所在目录」找，那里是 build 目录，
 # 而 CMake 默认不把源目录放进 include 路径，所以要把源目录显式加进来。

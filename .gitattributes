@@ -1,0 +1,4 @@
+# Windows 批处理必须是 CRLF：
+# cmd.exe 对 LF 结尾的 .bat 在 goto/标签/括号块上会出错，
+# 这里强制 checkout 时用 CRLF，避免换机器 clone（core.autocrlf=false）时踩坑。
+*.bat text eol=crlf
