@@ -22,7 +22,7 @@ Windows 桌面助手（Qt 6 / MinGW）。常驻系统托盘，提供开机自启
 
 | 依赖 | 版本 | 说明 |
 | --- | --- | --- |
-| Qt（动态构建） | 6.9.0（MinGW 64-bit） | 安装器装的 kit，`build-dynamic\` 用它 |
+| Qt（动态构建） | 6.12.0（MinGW 64-bit） | 安装器装的 kit，`build-dynamic\` 用它 |
 | Qt 源码（静态构建） | `qt-everywhere-src-6.12.0.zip` | 自编静态库，产物指向 `D:\Qt\Programs\6.12.0-static`，见「编译静态 Qt」 |
 | CMake | 3.16 及以上 | 可使用 Qt 安装包自带的 `Tools\CMake_64` |
 | MinGW | **15.1.0** | `Tools\mingw1510_64`（已从 13.1.0 升级），动态/静态两条线共用同一套编译器 |
@@ -39,7 +39,7 @@ Windows 桌面助手（Qt 6 / MinGW）。常驻系统托盘，提供开机自启
 
 | 目录 | 提供 |
 | --- | --- |
-| `D:\Programs\Qt\6.9.0\mingw_64\bin` | Qt 的 DLL 与 `windeployqt` |
+| `D:\Programs\Qt\6.12.0\mingw_64\bin` | Qt 的 DLL 与 `windeployqt` |
 | `D:\Programs\Qt\Tools\mingw1510_64\bin` | `g++` / `mingw32-make`（15.1.0） |
 | `D:\Programs\Qt\Tools\CMake_64\bin` | `cmake` |
 
@@ -59,7 +59,7 @@ mingw32-make --version
 
 ```bat
 cmake -B build-dynamic -G "MinGW Makefiles" ^
-      -DCMAKE_PREFIX_PATH=D:\Programs\Qt\6.9.0\mingw_64 ^
+      -DCMAKE_PREFIX_PATH=D:\Programs\Qt\6.12.0\mingw_64 ^
       -DCMAKE_BUILD_TYPE=Release
 
 cmake --build build-dynamic
@@ -67,7 +67,7 @@ cmake --build build-dynamic
 
 参数说明：
 
-- `-DCMAKE_PREFIX_PATH`：指向 Qt 的 **kit 目录**（`6.9.0\mingw_64`），不是 `Tools\` 下的目录，用于让 CMake 找到 `Qt6Config.cmake`。
+- `-DCMAKE_PREFIX_PATH`：指向 Qt 的 **kit 目录**（`6.12.0\mingw_64`），不是 `Tools\` 下的目录，用于让 CMake 找到 `Qt6Config.cmake`。
 - `-DCMAKE_BUILD_TYPE`：`MinGW Makefiles` 属于单配置生成器，构建类型必须在配置阶段指定。
 - 构建目录叫 `build-dynamic`（动态构建用），**静态构建用 `build\`**，两套缓存互不覆盖，详见「静态构建」一节。
 
@@ -112,7 +112,7 @@ imageformats\   styles\   tls\   ...
 注意事项：
 
 - **exe 文件名是 `BGAssistant.exe`（无下划线）**，由 `CMakeLists.txt` 中的 `project(BGAssistant ...)` 决定。若写成 `BG_Assistant.exe`，`windeployqt` 会报 `Cannot find file`。
-- `windeployqt` 位于 Qt 的 `bin` 目录（`D:\Programs\Qt\6.9.0\mingw_64\bin`），系统 `PATH` 已包含该目录，普通 cmd 里可直接调用。
+- `windeployqt` 位于 Qt 的 `bin` 目录（`D:\Programs\Qt\6.12.0\mingw_64\bin`），系统 `PATH` 已包含该目录，普通 cmd 里可直接调用。
 - **换过编译器后要清空 `release\` 重新 `windeployqt`**：`--compiler-runtime` 拷进来的运行时 DLL 必须和编译 exe 的 GCC 同版本（现在是 15.1.0）。目录里若残留旧的 13.1.0 版 `libstdc++-6.dll` / `libgcc_s_seh-1.dll`，会被优先加载，典型症状是启动报「找不到入口点」或直接闪退。
   > 重跑后建议比一下版本：`release\libstdc++-6.dll` 应与 `Tools\mingw1510_64\bin\libstdc++-6.dll` 一致（右键属性看「文件版本」）。若 windeployqt 仍拷了 13.1.0 的（它可能按 Qt 安装时的工具链目录去找），直接手动覆盖这三个 DLL 即可。
 - 目录分发后位置变化，需重新勾选「开机自启」，原因见下节。
@@ -174,8 +174,9 @@ endif()
 只需做一次。本例用 **Qt 6.12.0 源码包**（`qt-everywhere-src-6.12.0.zip`）+ **`Tools\mingw1510_64`（GCC 15.1.0）**，
 保证静态 Qt 与后续编译 BGAssistant 用的是同一个编译器。
 
-> 静态这条线用 6.12.0，动态那条线仍是安装器装的 6.9.0 kit，两套可以共存、互不干扰：
-> `build-dynamic\` 用 6.9.0，`build\`（静态）用 6.12.0。两条线共用同一个 MinGW 15.1.0。
+> 动态、静态两条线现在都是 **6.12.0**：动态用安装器装的官方预编译 kit（`6.12.0\mingw_64`），
+> 静态是自己从源码编的那份（`D:\Qt\Programs\6.12.0-static`）。两条线共用同一个 MinGW 15.1.0，
+> 但**不要混着用**：一个 exe 要么链动态 DLL，要么静态链，别交叉。
 
 ### 1. 解压源码
 
@@ -189,8 +190,8 @@ D:\Programs\Qt\qt-everywhere-src-6.12.0\
 └── ...
 ```
 
-> 如果用的是安装器里的 `Src` 目录（`D:\Programs\Qt\6.9.0\Src`），结构一样，把下面命令里的路径换掉即可。
-> 注意源码版本要和 `-prefix` 装的静态 Qt 版本一致，别拿 6.9.0 的 `Src` 编出个 6.12.0 的目录名。
+> 如果用的是安装器里的 `Src` 目录（`D:\Programs\Qt\6.12.0\Src`），结构一样，把下面命令里的路径换掉即可。
+> 注意源码版本要和 `-prefix` 装的静态 Qt 版本一致，别拿别的版本的 `Src` 编出个 6.12.0 的目录名。
 
 ### 2. 确认编译器
 
@@ -402,8 +403,8 @@ ini 里的 `RunCommand` 写的是**沙箱内部**的落盘路径，启动前要�
   3. **代码本身无需改动**：全部 4 处 `std::` 用法（`wstring` / `sort` / `stable_sort` / `swap`）都有对应头文件（`<string>` / `<algorithm>` / `<utility>`），
      没有用到 Qt 6 已移除的 API（`QRegExp`、`QTextCodec` 等），三处 `windows.h` 都带 `NOMINMAX`；
      GCC 15 只是默认警告更多，项目没开 `-Werror`，不会因此编不过。
-  4. 动态构建目前是「**GCC 15 编的代码 + GCC 13.1.0 编的 Qt 6.9.0 库**」混搭：libstdc++ 是向后兼容的，通常能编能跑；
-     万一链接报 `undefined reference to std::...` 或启动报缺符号，说明这对组合不兼容，装一个与 15.1.0 配套的 Qt kit（改 `CMAKE_PREFIX_PATH`）即可，代码不用动。
+  4. 动态构建链的是官方预编译的 Qt 6.12.0 库，和 `Tools\mingw1510_64` 是安装器配套的一套，正常情况下直接可用；
+     只有另行换掉 MinGW（换成别的大版本）才会遇到 `undefined reference to std::...` 或运行期缺符号，把 MinGW 换回配套版本即可，代码不用动。
 - **神隐锁屏不是安全锁。** 它用于防止他人误操作键盘/鼠标，无法阻止任务管理器结束进程、`Ctrl+Alt+Del`、`Win+L` 等系统级操作；多显示器环境下目前仅覆盖主屏。
 - **托盘图标动画持续播放是有意设计。** 太极图标以 40ms 间隔循环播放（`main.cpp` 中的 `QTimer`），常驻重绘属于预期行为，不作为待优化项，代码审查时无需再提出。
 - `icons\app.ico` 通过 `app.rc.in` 生成 `app.rc` 后编入 exe 的资源段，这是 exe 图标生效的唯一途径（CMake 没有 `WINDOWS_ICON` 属性）。
