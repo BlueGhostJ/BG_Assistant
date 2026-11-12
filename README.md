@@ -27,7 +27,7 @@ Windows 桌面助手（Qt 6 / MinGW）。常驻系统托盘，提供开机自启
 | CMake | 3.16 及以上 | 可使用 Qt 安装包自带的 `Tools\CMake_64` |
 | MinGW | **15.1.0** | `Tools\mingw1510_64`（已从 13.1.0 升级），动态/静态两条线共用同一套编译器 |
 
-以下步骤假定 Qt 安装在 `D:\Programs\Qt`，如实际路径不同请自行替换。
+以下步骤假定 Qt 安装在 `D:\Programs\Qt`，如实际路径不同请自行替换；并假定 Qt 的 `bin`、MinGW 15.1.0 的 `bin`、`Tools\CMake_64\bin` 都已在**系统 `PATH`** 里（见「编译步骤」第 1 步的表格）。
 
 ---
 
@@ -35,29 +35,25 @@ Windows 桌面助手（Qt 6 / MinGW）。常驻系统托盘，提供开机自启
 
 ### 1. 打开命令行
 
-使用开始菜单中的 **「Qt 6.9.0 (MinGW 13.1.0 64-bit)」** 快捷方式打开命令提示符。
+普通命令提示符（`cmd`）即可，不用专门从 Qt 的开始菜单快捷方式启动——系统 `PATH` 里已经包含：
 
-> 快捷方式名字里的「13.1.0」是安装器当初建它时写死的，改不了；它只负责把 **Qt 自身的 bin** 加入 `PATH`，
-> **不包含** CMake 与 MinGW 工具链。实际用哪个编译器由下一步的 `PATH` 决定，本项目统一用 **15.1.0**。
+| 目录 | 提供 |
+| --- | --- |
+| `D:\Programs\Qt\6.9.0\mingw_64\bin` | Qt 的 DLL 与 `windeployqt` |
+| `D:\Programs\Qt\Tools\mingw1510_64\bin` | `g++` / `mingw32-make`（15.1.0） |
+| `D:\Programs\Qt\Tools\CMake_64\bin` | `cmake` |
 
-### 2. 补充 CMake 与 MinGW 到 PATH
+### 2. 确认工具链
 
-```bat
-set "PATH=D:\Programs\Qt\Tools\mingw1510_64\bin;%PATH%"
-set "PATH=D:\Programs\Qt\Tools\CMake_64\bin;%PATH%"
-```
-
-> **不要再用 `for /d %i in (...\Tools\mingw*)` 那种通配写法**：`Tools\` 下可能同时留着 `mingw1310_64` 和
-> `mingw1510_64`，循环会把两个都塞进 `PATH`，实际生效的是最后挤进去的那个，很容易莫名其妙编错版本。
-> 写死路径最稳。
-
-验证工具链是否就绪，三条命令都应有版本输出，其中 `g++ --version` 必须是 **15.1.0**：
+三条命令都要有版本输出，其中 `g++ --version` 必须是 **15.1.0**：
 
 ```bat
 cmake --version
 g++ --version
 mingw32-make --version
 ```
+
+> 换机器或重装 Qt 后若提示「不是内部或外部命令」，把上表三个目录按这个顺序补进系统 `PATH` 即可（Qt 的 `bin` 放最前）。
 
 ### 3. 配置并编译
 
@@ -116,7 +112,7 @@ imageformats\   styles\   tls\   ...
 注意事项：
 
 - **exe 文件名是 `BGAssistant.exe`（无下划线）**，由 `CMakeLists.txt` 中的 `project(BGAssistant ...)` 决定。若写成 `BG_Assistant.exe`，`windeployqt` 会报 `Cannot find file`。
-- `windeployqt` 位于 Qt 的 `bin` 目录（`D:\Programs\Qt\6.9.0\mingw_64\bin`），Qt 命令行快捷方式已将其加入 `PATH`。
+- `windeployqt` 位于 Qt 的 `bin` 目录（`D:\Programs\Qt\6.9.0\mingw_64\bin`），系统 `PATH` 已包含该目录，普通 cmd 里可直接调用。
 - **换过编译器后要清空 `release\` 重新 `windeployqt`**：`--compiler-runtime` 拷进来的运行时 DLL 必须和编译 exe 的 GCC 同版本（现在是 15.1.0）。目录里若残留旧的 13.1.0 版 `libstdc++-6.dll` / `libgcc_s_seh-1.dll`，会被优先加载，典型症状是启动报「找不到入口点」或直接闪退。
   > 重跑后建议比一下版本：`release\libstdc++-6.dll` 应与 `Tools\mingw1510_64\bin\libstdc++-6.dll` 一致（右键属性看「文件版本」）。若 windeployqt 仍拷了 13.1.0 的（它可能按 Qt 安装时的工具链目录去找），直接手动覆盖这三个 DLL 即可。
 - 目录分发后位置变化，需重新勾选「开机自启」，原因见下节。
@@ -196,17 +192,16 @@ D:\Programs\Qt\qt-everywhere-src-6.12.0\
 > 如果用的是安装器里的 `Src` 目录（`D:\Programs\Qt\6.9.0\Src`），结构一样，把下面命令里的路径换掉即可。
 > 注意源码版本要和 `-prefix` 装的静态 Qt 版本一致，别拿 6.9.0 的 `Src` 编出个 6.12.0 的目录名。
 
-### 2. 打开 Qt 命令行并补 PATH
+### 2. 确认编译器
 
-用开始菜单的 **「Qt 6.9.0 (MinGW 13.1.0 64-bit)」** 快捷方式打开 cmd（名字是安装器写死的，实际编译器看下面的 `PATH`），再执行：
+普通 cmd 即可（系统 `PATH` 已配好），先确认版本：
 
 ```bat
-set "PATH=D:\Programs\Qt\Tools\mingw1510_64\bin;%PATH%"
-set "PATH=D:\Programs\Qt\Tools\CMake_64\bin;%PATH%"
+g++ --version
 ```
 
-> 编静态 Qt 前后都确认一下 `g++ --version` 是 15.1.0。**Qt 和项目必须用同一套 GCC**：
-> 之前用 13.1.0 编过静态 Qt 的话，先 `rmdir /s /q D:\Qt\Programs\6.12.0-static` 再重编，别混着用。
+必须是 **15.1.0**。**Qt 和项目必须用同一套 GCC**：之前用 13.1.0 编过静态 Qt 的话，
+先 `rmdir /s /q D:\Qt\Programs\6.12.0-static` 再重编，别混着用。
 
 ### 3. 配置（在单独的空构建目录里）
 
