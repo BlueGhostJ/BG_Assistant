@@ -217,9 +217,9 @@ cd /d D:\Programs\Qt\build-static-6120
 D:\Programs\Qt\qt-everywhere-src-6.12.0\configure.bat -static -static-runtime -release -opensource ^
   -confirm-license -nomake examples -nomake tests ^
   -skip qtwebengine -skip qtmultimedia -skip qt3d -skip qttools ^
-  -skip qtdeclarative -skip qtcanvaspainter -skip qtcharts -skip qtgraphs ^
-  -skip qtdatavis3d -skip qtlottie -skip qtvirtualkeyboard -skip qtlocation ^
-  -skip qtwebview -skip qtquick3d -skip qtquicktimeline -skip qtquickeffectmaker ^
+  -skip qtcanvaspainter -skip qtcharts -skip qtgraphs -skip qtdatavis3d ^
+  -skip qtlottie -skip qtvirtualkeyboard -skip qtlocation -skip qtwebview ^
+  -skip qtquick3d -skip qtquick3dphysics -skip qtquicktimeline -skip qtquickeffectmaker ^
   -prefix D:\Programs\Qt\6.12.0-static
 ```
 
@@ -228,16 +228,16 @@ D:\Programs\Qt\qt-everywhere-src-6.12.0\configure.bat -static -static-runtime -r
 - `-static`：产出静态库（`.a`），这是单文件 exe 的前提。
 - `-static-runtime`：Qt 自身也静态链接 MinGW 运行时。
 - `-opensource -confirm-license`：开源版并跳过交互式许可确认。
-- `-skip ...`：本项目只用 Widgets（`qtbase`），把用不到的大模块排掉，编译时间从 1～3 小时降到 **20～40 分钟**。
+- `-skip ...`：把用不到的模块排掉，编译时间从 1～3 小时降到 **30～45 分钟**。
 - `-prefix`：安装目录，`构建static.bat` 里的 `QT_STATIC` 默认指向这里。
 
-> **`-skip` 要连"整条依赖链"一起跳。** `qtdeclarative`（Qt Quick 的运行时）一跳，所有依赖它的模块都得一起跳，
-> 否则 configure 会逐个报 `Module 'X' depends on 'qtdeclarative', but building 'qtdeclarative' was explicitly disabled`。
-> 6.12 里这条链包括 `qtcanvaspainter`、`qtcharts`、`qtgraphs`、`qtdatavis3d`、`qtlottie`、`qtvirtualkeyboard`、
-> `qtlocation`、`qtwebview`、`qtquick3d`、`qtquicktimeline`、`qtquickeffectmaker`，上面的命令已经全部带上。
+> **注意这里没有 `-skip qtdeclarative`。** Qt Quick 的运行时保留着编（约多花 8～10 分钟），
+> 换来的是不用处理依赖链：`-skip` 不会自动传递，一旦跳过 `qtdeclarative`，
+> 所有依赖它的模块都会逐个报 `Module 'X' depends on 'qtdeclarative', but building 'qtdeclarative' was explicitly disabled`，
+> 而且 Qt 只会一次报一个——6.12 里这类模块包括 `qtcanvaspainter`、`qtquick3dphysics`、`qtgraphs`、`qtvirtualkeyboard` ……
+> 想省这几分钟就得反复试错，不划算。
 >
-> 嫌这个清单太长也可以反过来做：**去掉 `-skip qtdeclarative`**，让它跟着一起编（多 10～15 分钟），
-> 就不用操心任何连带依赖了。
+> 本项目只用 Widgets，编出来的 Qt Quick 静态库**不会被链进 exe**（静态链接只拉用到的符号），只是占点磁盘。
 
 > 若 configure 报 `Unknown module ...`，说明那个模块在 6.12 里已经不存在（Qt 各版本模块有增删），
 > 把对应的 `-skip` 删掉再跑一次即可，其余参数不用动。
