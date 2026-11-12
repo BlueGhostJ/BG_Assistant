@@ -10,7 +10,7 @@ rem ============================================================
 chcp 65001 >nul
 setlocal
 
-set "QT_STATIC=D:\Qt\Programs\6.12.0-static"
+set "QT_STATIC=D:\Programs\Qt\6.12.0-static"
 set "MINGW_BIN=D:\Programs\Qt\Tools\mingw1510_64\bin"
 set "CMAKE_BIN=D:\Programs\Qt\Tools\CMake_64\bin"
 
