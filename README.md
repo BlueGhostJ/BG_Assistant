@@ -25,7 +25,7 @@ Windows 桌面助手（Qt 6 / MinGW）。常驻系统托盘，提供开机自启
 | Qt（动态构建） | 6.9.0（MinGW 64-bit） | 安装器装的 kit，`build-dynamic\` 用它 |
 | Qt 源码（静态构建） | `qt-everywhere-src-6.12.0.zip` | 自编静态库，产物指向 `D:\Qt\Programs\6.12.0-static`，见「编译静态 Qt」 |
 | CMake | 3.16 及以上 | 可使用 Qt 安装包自带的 `Tools\CMake_64` |
-| MinGW | 13.1.0（随 Qt 安装） | 位于 `Tools\mingw1310_64`，动态/静态两条线共用 |
+| MinGW | **15.1.0** | `Tools\mingw1510_64`（已从 13.1.0 升级），动态/静态两条线共用同一套编译器 |
 
 以下步骤假定 Qt 安装在 `D:\Programs\Qt`，如实际路径不同请自行替换。
 
@@ -37,16 +37,21 @@ Windows 桌面助手（Qt 6 / MinGW）。常驻系统托盘，提供开机自启
 
 使用开始菜单中的 **「Qt 6.9.0 (MinGW 13.1.0 64-bit)」** 快捷方式打开命令提示符。
 
-> 该快捷方式只会把 **Qt 自身的 bin** 加入 `PATH`，**不包含** CMake 与 MinGW 工具链，因此还需要执行下一步。
+> 快捷方式名字里的「13.1.0」是安装器当初建它时写死的，改不了；它只负责把 **Qt 自身的 bin** 加入 `PATH`，
+> **不包含** CMake 与 MinGW 工具链。实际用哪个编译器由下一步的 `PATH` 决定，本项目统一用 **15.1.0**。
 
 ### 2. 补充 CMake 与 MinGW 到 PATH
 
 ```bat
-for /d %i in ("D:\Programs\Qt\Tools\mingw*") do @set "PATH=%~i\bin;%PATH%"
+set "PATH=D:\Programs\Qt\Tools\mingw1510_64\bin;%PATH%"
 set "PATH=D:\Programs\Qt\Tools\CMake_64\bin;%PATH%"
 ```
 
-验证工具链是否就绪，以下三条命令都应有版本输出：
+> **不要再用 `for /d %i in (...\Tools\mingw*)` 那种通配写法**：`Tools\` 下可能同时留着 `mingw1310_64` 和
+> `mingw1510_64`，循环会把两个都塞进 `PATH`，实际生效的是最后挤进去的那个，很容易莫名其妙编错版本。
+> 写死路径最稳。
+
+验证工具链是否就绪，三条命令都应有版本输出，其中 `g++ --version` 必须是 **15.1.0**：
 
 ```bat
 cmake --version
@@ -112,6 +117,8 @@ imageformats\   styles\   tls\   ...
 
 - **exe 文件名是 `BGAssistant.exe`（无下划线）**，由 `CMakeLists.txt` 中的 `project(BGAssistant ...)` 决定。若写成 `BG_Assistant.exe`，`windeployqt` 会报 `Cannot find file`。
 - `windeployqt` 位于 Qt 的 `bin` 目录（`D:\Programs\Qt\6.9.0\mingw_64\bin`），Qt 命令行快捷方式已将其加入 `PATH`。
+- **换过编译器后要清空 `release\` 重新 `windeployqt`**：`--compiler-runtime` 拷进来的运行时 DLL 必须和编译 exe 的 GCC 同版本（现在是 15.1.0）。目录里若残留旧的 13.1.0 版 `libstdc++-6.dll` / `libgcc_s_seh-1.dll`，会被优先加载，典型症状是启动报「找不到入口点」或直接闪退。
+  > 重跑后建议比一下版本：`release\libstdc++-6.dll` 应与 `Tools\mingw1510_64\bin\libstdc++-6.dll` 一致（右键属性看「文件版本」）。若 windeployqt 仍拷了 13.1.0 的（它可能按 Qt 安装时的工具链目录去找），直接手动覆盖这三个 DLL 即可。
 - 目录分发后位置变化，需重新勾选「开机自启」，原因见下节。
 
 ---
@@ -161,18 +168,18 @@ endif()
 ### 代价
 
 - 静态 Qt **只有 Release 库**，用 gdb 调试时看不到 Qt 内部符号（自己的代码断点正常）。要步进 Qt 源码得再编一份 debug 静态库，又多 1～2 GB。
-- 换 MinGW 版本必须重编 Qt（ABI 变了）。
+- 换 MinGW 版本必须重编 Qt（`-static` 会把 libstdc++ 静态链进 exe，两代运行时混在一起链接期就可能炸）。本项目已从 13.1.0 换到 **15.1.0**，之前用 13.1.0 编过的静态 Qt 必须删掉重编。
 - 链接比动态慢几秒（要从静态库里抽取目标文件并做 dead-code 消除）。
 
 ---
 
 ## 编译静态 Qt
 
-只需做一次。本例用 **Qt 6.12.0 源码包**（`qt-everywhere-src-6.12.0.zip`）+ **Qt 自带的 MinGW 13.1.0**，
+只需做一次。本例用 **Qt 6.12.0 源码包**（`qt-everywhere-src-6.12.0.zip`）+ **`Tools\mingw1510_64`（GCC 15.1.0）**，
 保证静态 Qt 与后续编译 BGAssistant 用的是同一个编译器。
 
 > 静态这条线用 6.12.0，动态那条线仍是安装器装的 6.9.0 kit，两套可以共存、互不干扰：
-> `build-dynamic\` 用 6.9.0，`build\`（静态）用 6.12.0。
+> `build-dynamic\` 用 6.9.0，`build\`（静态）用 6.12.0。两条线共用同一个 MinGW 15.1.0。
 
 ### 1. 解压源码
 
@@ -191,12 +198,15 @@ D:\Programs\Qt\qt-everywhere-src-6.12.0\
 
 ### 2. 打开 Qt 命令行并补 PATH
 
-用开始菜单的 **「Qt 6.9.0 (MinGW 13.1.0 64-bit)」** 快捷方式打开 cmd，再执行：
+用开始菜单的 **「Qt 6.9.0 (MinGW 13.1.0 64-bit)」** 快捷方式打开 cmd（名字是安装器写死的，实际编译器看下面的 `PATH`），再执行：
 
 ```bat
-for /d %i in ("D:\Programs\Qt\Tools\mingw*") do @set "PATH=%~i\bin;%PATH%"
+set "PATH=D:\Programs\Qt\Tools\mingw1510_64\bin;%PATH%"
 set "PATH=D:\Programs\Qt\Tools\CMake_64\bin;%PATH%"
 ```
+
+> 编静态 Qt 前后都确认一下 `g++ --version` 是 15.1.0。**Qt 和项目必须用同一套 GCC**：
+> 之前用 13.1.0 编过静态 Qt 的话，先 `rmdir /s /q D:\Qt\Programs\6.12.0-static` 再重编，别混着用。
 
 ### 3. 配置（在单独的空构建目录里）
 
@@ -222,9 +232,9 @@ D:\Programs\Qt\qt-everywhere-src-6.12.0\configure.bat -static -static-runtime -r
 > 若 configure 报 `Unknown module ...`，说明那个模块在 6.12 里已经不存在（Qt 各版本模块有增删），
 > 把对应的 `-skip` 删掉再跑一次即可，其余参数不用动。
 
-> configure 会先自检 CMake / 编译器 / Python 版本。6.12 的要求可能高于 6.9 自带的工具链，
-> 报「版本过低」时按提示用 `MaintenanceTool` 升级对应工具（**优先只升 CMake / Python，别动 MinGW**，
-> 换了 MinGW 就得连带重编动态那套 6.9.0 的代码）。
+> configure 会先自检 CMake / 编译器 / Python 版本。本机工具链已经是 MinGW 15.1.0，
+> 若还报某项版本过低，按提示用 `MaintenanceTool` 补装即可；但**再动 MinGW 就意味着这套静态库
+> 和动态构建都要重来**，升级前先想清楚。
 
 ### 4. 编译并安装
 
@@ -391,6 +401,14 @@ ini 里的 `RunCommand` 写的是**沙箱内部**的落盘路径，启动前要�
 
 ## 注意事项
 
+- **编译器和 Qt 必须成对。** 本项目现用 MinGW **15.1.0**（`Tools\mingw1510_64`），已从 13.1.0 升级，连带影响：
+  1. 动态构建：`windeployqt --compiler-runtime` 现在拷 15.1.0 的运行时，`release\` 里残留的旧 13.1.0 DLL 要清掉重跑，否则会「找不到入口点」；
+  2. 静态构建：静态 Qt 必须用 15.1.0 重编（`-static` 会把 libstdc++ 一起链进 exe，混两代运行时会在链接期或运行期炸）；
+  3. **代码本身无需改动**：全部 4 处 `std::` 用法（`wstring` / `sort` / `stable_sort` / `swap`）都有对应头文件（`<string>` / `<algorithm>` / `<utility>`），
+     没有用到 Qt 6 已移除的 API（`QRegExp`、`QTextCodec` 等），三处 `windows.h` 都带 `NOMINMAX`；
+     GCC 15 只是默认警告更多，项目没开 `-Werror`，不会因此编不过。
+  4. 动态构建目前是「**GCC 15 编的代码 + GCC 13.1.0 编的 Qt 6.9.0 库**」混搭：libstdc++ 是向后兼容的，通常能编能跑；
+     万一链接报 `undefined reference to std::...` 或启动报缺符号，说明这对组合不兼容，装一个与 15.1.0 配套的 Qt kit（改 `CMAKE_PREFIX_PATH`）即可，代码不用动。
 - **神隐锁屏不是安全锁。** 它用于防止他人误操作键盘/鼠标，无法阻止任务管理器结束进程、`Ctrl+Alt+Del`、`Win+L` 等系统级操作；多显示器环境下目前仅覆盖主屏。
 - **托盘图标动画持续播放是有意设计。** 太极图标以 40ms 间隔循环播放（`main.cpp` 中的 `QTimer`），常驻重绘属于预期行为，不作为待优化项，代码审查时无需再提出。
 - `icons\app.ico` 通过 `app.rc.in` 生成 `app.rc` 后编入 exe 的资源段，这是 exe 图标生效的唯一途径（CMake 没有 `WINDOWS_ICON` 属性）。
