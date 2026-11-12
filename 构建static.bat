@@ -1,6 +1,6 @@
 @echo off
 rem ============================================================
-rem 静态构建：用静态编译的 Qt 产出单文件 exe（不依赖任何 Qt DLL）
+rem 静态构建：用静态编译的 Qt 6.12.0 产出单文件 exe（不依赖任何 Qt DLL）
 rem
 rem 前置条件：先按 README「编译静态 Qt」一节把静态 Qt 装到 QT_STATIC，
 rem           没装过就把下面这行改成你的实际安装目录。
@@ -10,12 +10,12 @@ rem ============================================================
 chcp 65001 >nul
 setlocal
 
-set "QT_STATIC=D:\Qt\6.9.0-static"
+set "QT_STATIC=D:\Qt\6.12.0-static"
 
 if not exist "%QT_STATIC%\lib\cmake\Qt6\Qt6Config.cmake" (
     echo [错误] 没找到静态 Qt：%QT_STATIC%
     echo.
-    echo 请先按 README「编译静态 Qt」一节生成静态 Qt，
+    echo 请先按 README「编译静态 Qt」一节生成静态 Qt 6.12.0，
     echo 或修改本文件里的 QT_STATIC 变量指向已有的静态 Qt 目录。
     pause
     exit /b 1

@@ -22,9 +22,10 @@ Windows 桌面助手（Qt 6 / MinGW）。常驻系统托盘，提供开机自启
 
 | 依赖 | 版本 | 说明 |
 | --- | --- | --- |
-| Qt | 6.9.0（MinGW 64-bit） | 仅支持 Qt 6，已不再兼容 Qt 5 |
+| Qt（动态构建） | 6.9.0（MinGW 64-bit） | 安装器装的 kit，`build-dynamic\` 用它 |
+| Qt 源码（静态构建） | `qt-everywhere-src-6.12.0.zip` | 自编静态库，产物指向 `D:\Qt\6.12.0-static`，见「编译静态 Qt」 |
 | CMake | 3.16 及以上 | 可使用 Qt 安装包自带的 `Tools\CMake_64` |
-| MinGW | 13.1.0（随 Qt 安装） | 位于 `Tools\mingw1310_64` |
+| MinGW | 13.1.0（随 Qt 安装） | 位于 `Tools\mingw1310_64`，动态/静态两条线共用 |
 
 以下步骤假定 Qt 安装在 `D:\Programs\Qt`，如实际路径不同请自行替换。
 
@@ -121,11 +122,11 @@ imageformats\   styles\   tls\   ...
 
 ### 用法
 
-1. 按下一节「编译静态 Qt」把静态 Qt 装到 `D:\Qt\6.9.0-static`（**只做一次**）；
+1. 按下一节「编译静态 Qt」把静态 Qt 6.12.0 装到 `D:\Qt\6.12.0-static`（**只做一次**）；
 2. 双击 `构建static.bat`，等价于：
 
 ```bat
-cmake -B build -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=D:\Qt\6.9.0-static -DCMAKE_BUILD_TYPE=Release
+cmake -B build -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=D:\Qt\6.12.0-static -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
@@ -168,11 +169,26 @@ endif()
 
 ## 编译静态 Qt
 
-只需做一次。**用 Qt 自带的 MinGW 13.1.0 编译**，保证与后续构建 ABI 一致。
+只需做一次。本例用 **Qt 6.12.0 源码包**（`qt-everywhere-src-6.12.0.zip`）+ **Qt 自带的 MinGW 13.1.0**，
+保证静态 Qt 与后续编译 BGAssistant 用的是同一个编译器。
 
-### 1. 准备源码
+> 静态这条线用 6.12.0，动态那条线仍是安装器装的 6.9.0 kit，两套可以共存、互不干扰：
+> `build-dynamic\` 用 6.9.0，`build\`（静态）用 6.12.0。
 
-源码在 Qt 安装包的 `Src` 目录（安装时勾选 Sources）；没有就用 `MaintenanceTool` 补装，或从 <https://download.qt.io/official_releases/qt/> 下载 `qt-everywhere-src-6.9.0.zip` 解压，例如到 `D:\Programs\Qt\6.9.0\Src`。
+### 1. 解压源码
+
+`qt-everywhere-src-6.12.0.zip` 解压出来就是源码根目录（`configure.bat` 就在第一层），例如：
+
+```
+D:\Programs\Qt\qt-everywhere-src-6.12.0\
+├── configure.bat
+├── qtbase\
+├── qtdeclarative\
+└── ...
+```
+
+> 如果用的是安装器里的 `Src` 目录（`D:\Programs\Qt\6.9.0\Src`），结构一样，把下面命令里的路径换掉即可。
+> 注意源码版本要和 `-prefix` 装的静态 Qt 版本一致，别拿 6.9.0 的 `Src` 编出个 6.12.0 的目录名。
 
 ### 2. 打开 Qt 命令行并补 PATH
 
@@ -186,14 +202,14 @@ set "PATH=D:\Programs\Qt\Tools\CMake_64\bin;%PATH%"
 ### 3. 配置（在单独的空构建目录里）
 
 ```bat
-mkdir D:\Qt\build-static-690
-cd /d D:\Qt\build-static-690
+mkdir D:\Qt\build-static-6120
+cd /d D:\Qt\build-static-6120
 
-D:\Programs\Qt\6.9.0\Src\configure.bat -static -static-runtime -release -opensource ^
+D:\Programs\Qt\qt-everywhere-src-6.12.0\configure.bat -static -static-runtime -release -opensource ^
   -confirm-license -nomake examples -nomake tests ^
   -skip qtwebengine -skip qtdeclarative -skip qtmultimedia -skip qt3d ^
   -skip qtcharts -skip qttools -skip qtquick3d -skip qtquicktimeline ^
-  -prefix D:\Qt\6.9.0-static
+  -prefix D:\Qt\6.12.0-static
 ```
 
 参数说明：
@@ -204,6 +220,13 @@ D:\Programs\Qt\6.9.0\Src\configure.bat -static -static-runtime -release -opensou
 - `-skip ...`：本项目只用 Widgets（`qtbase`），把用不到的大模块排掉，编译时间从 1～3 小时降到 **20～40 分钟**。
 - `-prefix`：安装目录，`构建static.bat` 里的 `QT_STATIC` 默认指向这里。
 
+> 若 configure 报 `Unknown module ...`，说明那个模块在 6.12 里已经不存在（Qt 各版本模块有增删），
+> 把对应的 `-skip` 删掉再跑一次即可，其余参数不用动。
+
+> configure 会先自检 CMake / 编译器 / Python 版本。6.12 的要求可能高于 6.9 自带的工具链，
+> 报「版本过低」时按提示用 `MaintenanceTool` 升级对应工具（**优先只升 CMake / Python，别动 MinGW**，
+> 换了 MinGW 就得连带重编动态那套 6.9.0 的代码）。
+
 ### 4. 编译并安装
 
 ```bat
@@ -211,22 +234,23 @@ mingw32-make -j8
 mingw32-make install
 ```
 
-`-j8` 按 CPU 核心数调整。装完 `D:\Qt\6.9.0-static` 约 1～2 GB，中间目录 `build-static-690` 可以直接删掉。
+`-j8` 按 CPU 核心数调整。装完 `D:\Qt\6.12.0-static` 约 1～2 GB，中间目录 `build-static-6120` 可以直接删掉。
 
 ### 5. 验证
 
 存在下面这个文件即成功，接着跑 `构建static.bat`：
 
 ```bat
-dir D:\Qt\6.9.0-static\lib\cmake\Qt6\Qt6Config.cmake
+dir D:\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
 ```
 
 ### 注意
 
-- 编译期间源码 + 中间文件约占 10～15 GB，别放在剩余空间紧张的盘。
+- 编译期间源码 + 中间文件约占 **20～30 GB**（6.12 的源码包比 6.9 大不少），别放在剩余空间紧张的盘。
 - 静态 Qt 与动态 Qt 可共存，互不影响；但「静态 Qt 与编译器」必须配对，换编译器就得重编。
 - 只编一次：之后改项目代码不会重编 Qt，除非换 Qt 版本、换编译器或改 `configure` 参数。
 - 漏了 `-static-runtime`（Qt 侧）或 `-static`（项目侧），exe 仍会带出三个 MinGW 运行时 DLL。
+- Qt 6.12 比 6.9 新，若本项目代码在 6.12 下有 API 变动导致编译报错，属于版本差异，改代码即可（动态 6.9 那条线不受影响）。
 
 ---
 
