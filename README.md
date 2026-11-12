@@ -130,16 +130,15 @@ cmake -B build -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=D:\Qt\6.12.0-static -DCM
 cmake --build build
 ```
 
-产物：`release-static\BGAssistant.exe`，单文件直接分发，约 12～16 MB。
+产物：`build\BGAssistant.exe`，单文件直接分发，约 12～16 MB。
 
 ### 构建目录约定
 
 | 目录 | 内容 | 由谁使用 |
 | --- | --- | --- |
-| `build\` | 静态构建缓存 | `构建static.bat` |
+| `build\` | 静态构建缓存，**产物 `build\BGAssistant.exe` 就是单文件 exe** | `构建static.bat` |
 | `build-dynamic\` | 动态构建缓存 | `构建release.bat` |
 | `release\` | 动态构建的绿色包（含 DLL） | `构建release.bat` |
-| `release-static\` | 静态构建的单文件 exe | `构建static.bat` |
 
 CMake 缓存与 Qt 的 prefix 绑定，两个 build 目录不要混用，否则每次切换都要全量重新配置。
 
@@ -256,7 +255,7 @@ dir D:\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
 
 ## 运行
 
-直接运行 `build-dynamic\BGAssistant.exe`（动态构建）或 `release-static\BGAssistant.exe`（静态单文件），程序常驻系统托盘（太极图标）。
+直接运行 `build-dynamic\BGAssistant.exe`（动态构建）或 `build\BGAssistant.exe`（静态单文件），程序常驻系统托盘（太极图标）。
 
 托盘左键单击弹出菜单：
 

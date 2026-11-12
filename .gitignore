@@ -31,10 +31,9 @@ Makefile*
 *build-*
 build/
 release/
-# 构建产物目录：build/ 给静态构建（构建static.bat），
-# build-dynamic/ 给动态构建（构建release.bat），release-static/ 是静态 exe 的输出目录
+# 构建产物目录：build/ 给静态构建（构建static.bat，产物就是 build\BGAssistant.exe），
+# build-dynamic/ 给动态构建（构建release.bat）
 build-dynamic/
-release-static/
 *.qm
 *.prl
 *.qmlls.ini

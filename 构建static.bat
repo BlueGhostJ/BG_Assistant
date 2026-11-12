@@ -23,7 +23,6 @@ if not exist "%QT_STATIC%\lib\cmake\Qt6\Qt6Config.cmake" (
 
 rem 静态构建用 build\，动态构建用 build-dynamic\，两者互不干扰
 rmdir /s /q build 2>nul
-rmdir /s /q release-static 2>nul
 
 cmake -B build -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH="%QT_STATIC%" -DCMAKE_BUILD_TYPE=Release
 if errorlevel 1 goto :fail
@@ -31,10 +30,8 @@ if errorlevel 1 goto :fail
 cmake --build build
 if errorlevel 1 goto :fail
 
-if not exist release-static mkdir release-static
-copy build\BGAssistant.exe release-static\ >nul
 echo.
-echo 完成：release-static\BGAssistant.exe（静态链接，单文件，无需任何 DLL）
+echo 完成：build\BGAssistant.exe（静态链接，单文件，无需任何 DLL，直接拷走就能用）
 pause
 exit /b 0
 
