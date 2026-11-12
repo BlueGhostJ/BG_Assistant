@@ -23,7 +23,7 @@ Windows 桌面助手（Qt 6 / MinGW）。常驻系统托盘，提供开机自启
 | 依赖 | 版本 | 说明 |
 | --- | --- | --- |
 | Qt（动态构建） | 6.9.0（MinGW 64-bit） | 安装器装的 kit，`build-dynamic\` 用它 |
-| Qt 源码（静态构建） | `qt-everywhere-src-6.12.0.zip` | 自编静态库，产物指向 `D:\Qt\6.12.0-static`，见「编译静态 Qt」 |
+| Qt 源码（静态构建） | `qt-everywhere-src-6.12.0.zip` | 自编静态库，产物指向 `D:\Qt\Programs\6.12.0-static`，见「编译静态 Qt」 |
 | CMake | 3.16 及以上 | 可使用 Qt 安装包自带的 `Tools\CMake_64` |
 | MinGW | 13.1.0（随 Qt 安装） | 位于 `Tools\mingw1310_64`，动态/静态两条线共用 |
 
@@ -122,11 +122,11 @@ imageformats\   styles\   tls\   ...
 
 ### 用法
 
-1. 按下一节「编译静态 Qt」把静态 Qt 6.12.0 装到 `D:\Qt\6.12.0-static`（**只做一次**）；
+1. 按下一节「编译静态 Qt」把静态 Qt 6.12.0 装到 `D:\Qt\Programs\6.12.0-static`（**只做一次**）；
 2. 双击 `构建static.bat`，等价于：
 
 ```bat
-cmake -B build -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=D:\Qt\6.12.0-static -DCMAKE_BUILD_TYPE=Release
+cmake -B build -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=D:\Qt\Programs\6.12.0-static -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
@@ -208,7 +208,7 @@ D:\Programs\Qt\qt-everywhere-src-6.12.0\configure.bat -static -static-runtime -r
   -confirm-license -nomake examples -nomake tests ^
   -skip qtwebengine -skip qtdeclarative -skip qtmultimedia -skip qt3d ^
   -skip qtcharts -skip qttools -skip qtquick3d -skip qtquicktimeline ^
-  -prefix D:\Qt\6.12.0-static
+  -prefix D:\Qt\Programs\6.12.0-static
 ```
 
 参数说明：
@@ -233,14 +233,14 @@ mingw32-make -j8
 mingw32-make install
 ```
 
-`-j8` 按 CPU 核心数调整。装完 `D:\Qt\6.12.0-static` 约 1～2 GB，中间目录 `build-static-6120` 可以直接删掉。
+`-j8` 按 CPU 核心数调整。装完 `D:\Qt\Programs\6.12.0-static` 约 1～2 GB，中间目录 `build-static-6120` 可以直接删掉。
 
 ### 5. 验证
 
 存在下面这个文件即成功，接着跑 `构建static.bat`：
 
 ```bat
-dir D:\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
+dir D:\Qt\Programs\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
 ```
 
 ### 注意

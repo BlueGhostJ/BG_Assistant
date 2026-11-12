@@ -10,7 +10,7 @@ rem ============================================================
 chcp 65001 >nul
 setlocal
 
-set "QT_STATIC=D:\Qt\6.12.0-static"
+set "QT_STATIC=D:\Qt\Programs\6.12.0-static"
 
 if not exist "%QT_STATIC%\lib\cmake\Qt6\Qt6Config.cmake" (
     echo [错误] 没找到静态 Qt：%QT_STATIC%
