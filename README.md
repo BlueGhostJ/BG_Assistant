@@ -216,10 +216,11 @@ cd /d D:\Programs\Qt\build-static-6120
 
 D:\Programs\Qt\qt-everywhere-src-6.12.0\configure.bat -static -static-runtime -release -opensource ^
   -confirm-license -nomake examples -nomake tests ^
-  -skip qtwebengine -skip qtmultimedia -skip qt3d -skip qttools ^
-  -skip qtcanvaspainter -skip qtcharts -skip qtgraphs -skip qtdatavis3d ^
-  -skip qtlottie -skip qtvirtualkeyboard -skip qtlocation -skip qtwebview ^
+  -skip qtwebengine -skip qtmultimedia -skip qt3d -skip qtcanvaspainter ^
+  -skip qtcharts -skip qtgraphs -skip qtdatavis3d -skip qtlottie ^
+  -skip qtvirtualkeyboard -skip qtlocation -skip qtwebview ^
   -skip qtquick3d -skip qtquick3dphysics -skip qtquicktimeline -skip qtquickeffectmaker ^
+  -skip qttools -skip qtdoc -skip qttranslations -skip qtspeech ^
   -prefix D:\Programs\Qt\6.12.0-static
 ```
 
@@ -231,12 +232,15 @@ D:\Programs\Qt\qt-everywhere-src-6.12.0\configure.bat -static -static-runtime -r
 - `-skip ...`：把用不到的模块排掉，编译时间从 1～3 小时降到 **30～45 分钟**。
 - `-prefix`：安装目录，`构建static.bat` 里的 `QT_STATIC` 默认指向这里。
 
-> **注意这里没有 `-skip qtdeclarative`。** Qt Quick 的运行时保留着编（约多花 8～10 分钟），
-> 换来的是不用处理依赖链：`-skip` 不会自动传递，一旦跳过 `qtdeclarative`，
-> 所有依赖它的模块都会逐个报 `Module 'X' depends on 'qtdeclarative', but building 'qtdeclarative' was explicitly disabled`，
-> 而且 Qt 只会一次报一个——6.12 里这类模块包括 `qtcanvaspainter`、`qtquick3dphysics`、`qtgraphs`、`qtvirtualkeyboard` ……
-> 想省这几分钟就得反复试错，不划算。
+> **`-skip` 不会传递，跳过"被别人依赖"的模块会连带报错。** 上面两处是踩过的坑：
+> 1. 不跳 `qtdeclarative`（Qt Quick 运行时）——跳了的话 `qtcanvaspainter`、`qtquick3dphysics`、`qtgraphs`
+>    等模块会逐个报 `Module 'X' depends on 'qtdeclarative'`，而且 Qt 一次只报一个；
+> 2. 跳过 `qttools` 就必须连 `qtdoc`、`qttranslations` 一起跳——后两者要 `qttools` 里的 `lupdate` / `lrelease`，
+>    否则报 `Module 'qtdoc' depends on 'qttools'`；
+> 3. `qtspeech` 依赖被跳过的 `qtmultimedia`，所以一并跳掉。
 >
+> 反过来说：跳过的模块必须是"没有启用中的模块依赖它"的叶子（图表、三维、多媒体、文档、翻译都属于此类）。
+
 > 本项目只用 Widgets，编出来的 Qt Quick 静态库**不会被链进 exe**（静态链接只拉用到的符号），只是占点磁盘。
 
 > 若 configure 报 `Unknown module ...`，说明那个模块在 6.12 里已经不存在（Qt 各版本模块有增删），
