@@ -11,6 +11,8 @@ chcp 65001 >nul
 setlocal
 
 set "QT_STATIC=D:\Qt\Programs\6.12.0-static"
+set "MINGW_BIN=D:\Programs\Qt\Tools\mingw1510_64\bin"
+set "CMAKE_BIN=D:\Programs\Qt\Tools\CMake_64\bin"
 
 if not exist "%QT_STATIC%\lib\cmake\Qt6\Qt6Config.cmake" (
     echo [错误] 没找到静态 Qt：%QT_STATIC%
@@ -20,6 +22,9 @@ if not exist "%QT_STATIC%\lib\cmake\Qt6\Qt6Config.cmake" (
     pause
     exit /b 1
 )
+
+rem 不依赖系统 PATH：MinGW 与 CMake 的目录临时前置，改完环境变量没重开资源管理器也能跑
+set "PATH=%MINGW_BIN%;%CMAKE_BIN%;%PATH%"
 
 rem 静态构建用 build\，动态构建用 build-dynamic\，两者互不干扰
 rmdir /s /q build 2>nul

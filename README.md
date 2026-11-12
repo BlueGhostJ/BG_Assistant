@@ -43,6 +43,10 @@ Windows 桌面助手（Qt 6 / MinGW）。常驻系统托盘，提供开机自启
 | `D:\Programs\Qt\Tools\mingw1510_64\bin` | `g++` / `mingw32-make`（15.1.0） |
 | `D:\Programs\Qt\Tools\CMake_64\bin` | `cmake` |
 
+> 两个 `构建*.bat` 内部已经把这三个目录**写死并临时前置**，双击运行不依赖系统 `PATH`；只有手工敲下面的命令时才需要 `PATH` 能找到它们。
+> 改完环境变量后如果新开的 cmd 里仍提示「不是内部或外部命令」或找不到 `windeployqt`，通常是 `explorer.exe` 还在用旧环境——
+> 注销重登、或重启资源管理器；直接双击 bat 不受影响。
+
 ### 2. 确认工具链
 
 三条命令都要有版本输出，其中 `g++ --version` 必须是 **15.1.0**：
@@ -397,6 +401,8 @@ ini 里的 `RunCommand` 写的是**沙箱内部**的落盘路径，启动前要�
 
 ## 注意事项
 
+- **报 `Could not find a package configuration file provided by "Qt6"`** → `CMAKE_PREFIX_PATH` 没指向 kit 目录，或指到了已不存在的旧版本路径。
+  两个 `构建*.bat` 内部已传好（`QT_KIT` / `QT_STATIC` 变量），手工构建时别漏了 `-DCMAKE_PREFIX_PATH`。
 - **编译器和 Qt 必须成对。** 本项目现用 MinGW **15.1.0**（`Tools\mingw1510_64`），已从 13.1.0 升级，连带影响：
   1. 动态构建：`windeployqt --compiler-runtime` 现在拷 15.1.0 的运行时，`release\` 里残留的旧 13.1.0 DLL 要清掉重跑，否则会「找不到入口点」；
   2. 静态构建：静态 Qt 必须用 15.1.0 重编（`-static` 会把 libstdc++ 一起链进 exe，混两代运行时会在链接期或运行期炸）；
