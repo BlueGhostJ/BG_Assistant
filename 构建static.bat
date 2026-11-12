@@ -29,6 +29,9 @@ set "PATH=%MINGW_BIN%;%CMAKE_BIN%;%PATH%"
 rem 静态构建用 build\，动态构建用 build-dynamic\，两者互不干扰
 rmdir /s /q build 2>nul
 
+rem 目录被占用（比如 build\BGAssistant.exe 还跑着）时 rmdir 会失败，直接停下来说清楚
+if exist build goto :locked
+
 cmake -B build -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH="%QT_STATIC%" -DCMAKE_BUILD_TYPE=Release
 if errorlevel 1 goto :fail
 
@@ -43,5 +46,14 @@ exit /b 0
 :fail
 echo.
 echo [失败] 构建没有通过，请看上面的报错信息。
+pause
+exit /b 1
+
+:locked
+echo.
+echo [错误] build\ 删不掉，多半是有程序正在使用：
+echo        1. 托盘里的 BGAssistant.exe 还没退出（右键图标 - 退出）
+echo        2. 资源管理器 / 编辑器正打开该目录
+echo        处理完后重跑本脚本。
 pause
 exit /b 1

@@ -30,6 +30,11 @@ set "PATH=%QT_KIT%\bin;%MINGW_BIN%;%CMAKE_BIN%;%PATH%"
 rmdir /s /q build-dynamic 2>nul
 rmdir /s /q release 2>nul
 
+rem 目录被占用（程序还在托盘里跑、或资源管理器开着）时 rmdir 会失败并留下半个目录，
+rem 这时候继续配置只会报一堆莫名其妙的错，不如直接停在这里说清楚
+if exist build-dynamic goto :locked
+if exist release goto :locked
+
 cmake -B build-dynamic -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH="%QT_KIT%" -DCMAKE_BUILD_TYPE=Release
 if errorlevel 1 goto :fail
 
@@ -55,5 +60,15 @@ exit /b 0
 :fail
 echo.
 echo [失败] 构建没有通过，请看上面的报错信息。
+pause
+exit /b 1
+
+:locked
+echo.
+echo [错误] build-dynamic\ 或 release\ 删不掉，多半是有程序正在使用：
+echo        1. 托盘里的 BGAssistant.exe 还没退出（右键图标 - 退出）
+echo        2. 资源管理器 / 编辑器正打开这两个目录
+echo        3. 杀毒软件正在扫描刚生成的 exe
+echo        处理完后重跑本脚本。
 pause
 exit /b 1
