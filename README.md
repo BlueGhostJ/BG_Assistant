@@ -216,8 +216,10 @@ cd /d D:\Programs\Qt\build-static-6120
 
 D:\Programs\Qt\qt-everywhere-src-6.12.0\configure.bat -static -static-runtime -release -opensource ^
   -confirm-license -nomake examples -nomake tests ^
-  -skip qtwebengine -skip qtdeclarative -skip qtmultimedia -skip qt3d ^
-  -skip qtcharts -skip qttools -skip qtquick3d -skip qtquicktimeline ^
+  -skip qtwebengine -skip qtmultimedia -skip qt3d -skip qttools ^
+  -skip qtdeclarative -skip qtcanvaspainter -skip qtcharts -skip qtgraphs ^
+  -skip qtdatavis3d -skip qtlottie -skip qtvirtualkeyboard -skip qtlocation ^
+  -skip qtwebview -skip qtquick3d -skip qtquicktimeline -skip qtquickeffectmaker ^
   -prefix D:\Programs\Qt\6.12.0-static
 ```
 
@@ -229,8 +231,19 @@ D:\Programs\Qt\qt-everywhere-src-6.12.0\configure.bat -static -static-runtime -r
 - `-skip ...`：本项目只用 Widgets（`qtbase`），把用不到的大模块排掉，编译时间从 1～3 小时降到 **20～40 分钟**。
 - `-prefix`：安装目录，`构建static.bat` 里的 `QT_STATIC` 默认指向这里。
 
+> **`-skip` 要连"整条依赖链"一起跳。** `qtdeclarative`（Qt Quick 的运行时）一跳，所有依赖它的模块都得一起跳，
+> 否则 configure 会逐个报 `Module 'X' depends on 'qtdeclarative', but building 'qtdeclarative' was explicitly disabled`。
+> 6.12 里这条链包括 `qtcanvaspainter`、`qtcharts`、`qtgraphs`、`qtdatavis3d`、`qtlottie`、`qtvirtualkeyboard`、
+> `qtlocation`、`qtwebview`、`qtquick3d`、`qtquicktimeline`、`qtquickeffectmaker`，上面的命令已经全部带上。
+>
+> 嫌这个清单太长也可以反过来做：**去掉 `-skip qtdeclarative`**，让它跟着一起编（多 10～15 分钟），
+> 就不用操心任何连带依赖了。
+
 > 若 configure 报 `Unknown module ...`，说明那个模块在 6.12 里已经不存在（Qt 各版本模块有增删），
 > 把对应的 `-skip` 删掉再跑一次即可，其余参数不用动。
+>
+> **configure 失败后重跑前，先把构建目录清空**（`rmdir /s /q D:\Programs\Qt\build-static-6120` 再 `mkdir`），
+> 残留的 `CMakeCache.txt` 会把上一次的错误配置带进来。
 
 > configure 会先自检 CMake / 编译器 / Python 版本。本机工具链已经是 MinGW 15.1.0，
 > 若还报某项版本过低，按提示用 `MaintenanceTool` 补装即可；但**再动 MinGW 就意味着这套静态库
