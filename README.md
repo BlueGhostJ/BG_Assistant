@@ -278,6 +278,19 @@ dir D:\Programs\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
 - 漏了 `-static-runtime`（Qt 侧）或 `-static`（项目侧），exe 仍会带出三个 MinGW 运行时 DLL。
 - Qt 6.12 比 6.9 新，若本项目代码在 6.12 下有 API 变动导致编译报错，属于版本差异，改代码即可（动态 6.9 那条线不受影响）。
 
+### 常见错误
+
+都是实际踩过的，按现象对照处理：
+
+| 现象 | 原因 | 处理 |
+| --- | --- | --- |
+| `Module 'X' depends on 'Y', but building 'Y' was explicitly disabled` | `-skip` 不会传递，跳了被别人依赖的模块 | 按提示把 X 也加进 `-skip`；或干脆不跳 Y（详见上一节的三条记录） |
+| `另一个程序正在使用此文件，进程无法访问` + 某个 `.rcc/qmlcache/*.cpp` 报 Error 1 | 杀软/索引/同步盘占着刚生成的文件 | 先 `mingw32-make -j4` 重试（多数是瞬时）；仍失败就删掉那个文件再跑；根治是把构建目录加进 Defender 排除项 |
+| `cc1plus.exe: out of memory` / 编译进程直接消失 | `-j8` 并行太高，单 TU 峰值能到 2 GB | 降 `-j4` 或 `-j2` 续编 |
+| `Unknown module ...` | 该模块在这一版 Qt 里不存在 | 删掉对应的 `-skip` |
+
+**这几种失败都不用重新 `configure`**：改完参数直接 `mingw32-make` 续编，已完成的进度会保留。
+
 ---
 
 ## 运行
