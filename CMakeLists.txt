@@ -24,8 +24,6 @@ set(PROJECT_SOURCES
         routemanager.cpp
         routemanager.h
         routemanager.ui
-        routetabledialog.cpp
-        routetabledialog.h
         routequery.cpp
         routequery.h
         sandboxie.cpp

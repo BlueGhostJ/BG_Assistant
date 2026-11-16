@@ -465,8 +465,7 @@ ini 里的 `RunCommand` 写的是**沙箱内部**的落盘路径，启动前要�
 ├── mainwindow.*        主窗口（预留，当前未显示）
 ├── configform.*        设置窗口（开机自启、锁屏常亮、锁屏密码）
 ├── lockscreen.*        神隐锁屏（全屏遮屏、盲打密码解锁）
-├── routemanager.*      系统路由管理窗口（添加/删除路由）
-├── routetabledialog.*  系统路由表窗口（原生表格显示）
+├── routemanager.*      系统路由管理窗口（添加/删除路由 + 系统路由表弹窗）
 ├── routequery.*        读取 IPv4 路由表（IP Helper API + 长效路由注册表）
 ├── sandboxie.*         解析 Sandboxie.ini、路径映射、启动沙箱
 ├── sandboxmenu.*       托盘「沙箱」菜单（含「显示启动命令」窗口）
