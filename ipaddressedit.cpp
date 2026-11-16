@@ -18,7 +18,9 @@ namespace {
 // 段与段之间留给点号的宽度
 const int kDotGap = 12;
 
-// 单段校验：手输限 0-255 且最多 3 位；含点号（粘贴整段 IP）时放行，由 IpAddressEdit::distribute 拆分。
+// 单段校验：手输限 0-255 且最多 3 位；含点号（粘贴整段 IP）时先放行，
+// 交给 IpAddressEdit::distribute 整体校验——任何一段非法就整次粘贴作废并清空输入框，
+// 不会留下半截文本给 address() 误读。
 // 不用 QIntValidator 就是因为它在粘贴 "192.168.1.1" 时会直接判非法，整段粘贴就用不了了。
 class IpPartValidator : public QValidator
 {
@@ -113,9 +115,15 @@ QString IpAddressEdit::address() const
     QStringList parts;
     for (int i = 0; i < 4; ++i) {
         const QString text = m_part[i]->text().trimmed();
-        if (text.isEmpty())
+
+        // 非纯数字 / 超范围一律视为"没填好"，让上层走"请填写 xxx"的既有校验，
+        // 不能用 toInt() 静默当 0 处理（那会拼出一个看起来合法、其实错误的地址）。
+        bool ok = false;
+        const int value = text.toInt(&ok);
+        if (!ok || value < 0 || value > 255)
             return QString();
-        parts << QString::number(text.toInt());
+
+        parts << QString::number(value);
     }
     return parts.join(QLatin1Char('.'));
 }
@@ -164,29 +172,45 @@ QSize IpAddressEdit::minimumSizeHint() const
 
 void IpAddressEdit::distribute(const QString &text, int from)
 {
-    const QStringList parts = text.split(QLatin1Char('.'), Qt::KeepEmptyParts);
-    // 粘贴进来的是完整 IP（四段）时从头填，否则从当前段往后填
-    int index = parts.size() >= 4 ? 0 : from;
+    QStringList parts = text.split(QLatin1Char('.'), Qt::KeepEmptyParts);
 
+    // 容忍 "192.168.1." 这种尾随点号
+    while (!parts.isEmpty() && parts.last().trimmed().isEmpty())
+        parts.removeLast();
+
+    // 先整体校验：任何一段不是 0-255 的纯数字，就整体拒绝这次粘贴。
+    // 不能"跳过非法段继续填"——那会把 abc.1.2.3 错位拼成 1.2.3.x，
+    // 也不能把粘贴文本留在输入框里——address() 会把它 toInt 成 0，静默拼出错误地址。
+    const int start = parts.size() == 4 ? 0 : from;
+    // 段数放不下（如在末段粘贴 1.2）也整体拒绝，避免悄悄丢掉后面的段
+    bool valid = !parts.isEmpty() && parts.size() <= 4 && start + int(parts.size()) <= 4;
+    for (const QString &part : parts) {
+        bool ok = false;
+        const int value = part.trimmed().toInt(&ok);
+        if (!ok || value < 0 || value > 255) {
+            valid = false;
+            break;
+        }
+    }
+
+    if (!valid) {
+        m_updating = true;
+        m_part[from]->clear();
+        m_updating = false;
+        focusPart(from);
+        emit addressChanged();
+        return;
+    }
+
+    // 粘贴进来的是完整 IP（四段）时从第一段开始填，否则从当前段往后填
+    int index = start;
     for (const QString &part : parts) {
         if (index > 3)
             break;
 
-        // 只保留数字，"19a2" 这种按 192 处理
-        QString digits;
-        for (QChar ch : part) {
-            if (ch.isDigit())
-                digits.append(ch);
-        }
-
-        bool ok = false;
-        const int value = digits.toInt(&ok);
-        if (!ok || value < 0 || value > 255)
-            continue;   // 空段（用户刚敲下点号）或非法值：不占位，继续看下一段
-
         const bool blocked = m_updating;
         m_updating = true;
-        m_part[index]->setText(QString::number(value));
+        m_part[index]->setText(QString::number(part.trimmed().toInt()));
         m_updating = blocked;
         ++index;
     }
