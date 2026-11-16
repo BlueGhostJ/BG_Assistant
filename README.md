@@ -1,512 +1,197 @@
-# BG_Assistant
+# BG Assistant
 
-Windows 桌面助手（Qt 6 / MinGW）。常驻系统托盘，提供开机自启、系统锁定与神隐锁屏（全屏遮屏、盲打密码解锁）。
+一个常驻 Windows 托盘的桌面小助手：锁定、遮屏、路由管理、沙箱启动，都收在托盘菜单里。
 
----
-
-## 功能
-
-| 功能 | 说明 |
-| --- | --- |
-| 系统托盘 | 常驻托盘（太极图标动画），左键弹出菜单 |
-| 开机自启 | 写入注册表 `Run` 项，随系统启动 |
-| 系统路由管理 | 以管理员身份添加/删除静态路由，原生表格查看系统路由表（托盘「系统」子菜单） |
-| 沙箱启动 | 解析 `C:\Windows\Sandboxie.ini` 的 `RunCommand`，托盘「沙箱」子菜单一键启动对应沙箱 |
-| 系统锁定 | 调用系统 `LockWorkStation` 锁定 Windows |
-| 神隐锁屏 | 全屏遮屏：屏幕保持原样、肉眼不可见，盲打密码解锁（详见下文） |
-| 锁屏密码 | AES 加密存储于本地 ini，可在设置页修改 |
+单文件绿色版，不安装、不写系统服务、不联网。
 
 ---
 
-## 环境要求
+## 功能一览
 
-| 依赖 | 版本 | 说明 |
+| 功能 | 入口 | 说明 |
 | --- | --- | --- |
-| Qt（动态构建） | 6.12.0（MinGW 64-bit） | 安装器装的 kit，`build-dynamic\` 用它 |
-| Qt 源码（静态构建） | `qt-everywhere-src-6.12.0.zip` | 自编静态库，产物指向 `D:\Programs\Qt\6.12.0-static`，见「编译静态 Qt」 |
-| CMake | 3.16 及以上 | 可使用 Qt 安装包自带的 `Tools\CMake_64` |
-| MinGW | **15.1.0** | `Tools\mingw1510_64`（已从 13.1.0 升级），动态/静态两条线共用同一套编译器 |
-
-以下步骤假定 Qt 安装在 `D:\Programs\Qt`，如实际路径不同请自行替换；并假定 Qt 的 `bin`、MinGW 15.1.0 的 `bin`、`Tools\CMake_64\bin` 都已在**系统 `PATH`** 里（见「编译步骤」第 1 步的表格）。
-
----
-
-## 编译步骤
-
-### 1. 打开命令行
-
-普通命令提示符（`cmd`）即可，不用专门从 Qt 的开始菜单快捷方式启动——系统 `PATH` 里已经包含：
-
-| 目录 | 提供 |
-| --- | --- |
-| `D:\Programs\Qt\6.12.0\mingw_64\bin` | Qt 的 DLL 与 `windeployqt` |
-| `D:\Programs\Qt\Tools\mingw1510_64\bin` | `g++` / `mingw32-make`（15.1.0） |
-| `D:\Programs\Qt\Tools\CMake_64\bin` | `cmake` |
-
-> 两个 `构建*.bat` 内部已经把这三个目录**写死并临时前置**，双击运行不依赖系统 `PATH`；只有手工敲下面的命令时才需要 `PATH` 能找到它们。
-> 改完环境变量后如果新开的 cmd 里仍提示「不是内部或外部命令」或找不到 `windeployqt`，通常是 `explorer.exe` 还在用旧环境——
-> 注销重登、或重启资源管理器；直接双击 bat 不受影响。
-
-### 2. 确认工具链
-
-三条命令都要有版本输出，其中 `g++ --version` 必须是 **15.1.0**：
-
-```bat
-cmake --version
-g++ --version
-mingw32-make --version
-```
-
-> 换机器或重装 Qt 后若提示「不是内部或外部命令」，把上表三个目录按这个顺序补进系统 `PATH` 即可（Qt 的 `bin` 放最前）。
-
-### 3. 配置并编译
-
-```bat
-cmake -B build-dynamic -G "MinGW Makefiles" ^
-      -DCMAKE_PREFIX_PATH=D:\Programs\Qt\6.12.0\mingw_64 ^
-      -DCMAKE_BUILD_TYPE=Release
-
-cmake --build build-dynamic
-```
-
-参数说明：
-
-- `-DCMAKE_PREFIX_PATH`：指向 Qt 的 **kit 目录**（`6.12.0\mingw_64`），不是 `Tools\` 下的目录，用于让 CMake 找到 `Qt6Config.cmake`。
-- `-DCMAKE_BUILD_TYPE`：`MinGW Makefiles` 属于单配置生成器，构建类型必须在配置阶段指定。
-- 构建目录叫 `build-dynamic`（动态构建用），**静态构建用 `build\`**，两套缓存互不覆盖，详见「静态构建」一节。
-
-编译产物：`build-dynamic\BGAssistant.exe`
-
-### 4. 重新构建
-
-若此前配置失败过，`build-dynamic` 目录中可能残留错误的 `CMakeCache.txt`，先清理再重新配置：
-
-```bat
-rmdir /s /q build-dynamic
-```
+| 锁定 | 托盘 › 锁定 | 立即锁定 Windows（等同 `Win+L`） |
+| 遮屏 | 托盘 › 遮屏 | 屏幕保持原样、看不到任何遮罩，盲打密码解锁 |
+| 路由管理 | 托盘 › 系统 › 路由管理 | 图形化增删静态路由、查看系统路由表（需管理员） |
+| 沙箱 | 托盘 › 沙箱 | 一键启动 Sandboxie 沙箱里配好的程序 |
+| 开机自启 | 托盘 › 设置 | 登录 Windows 后自动运行 |
+| 锁屏密码 | 托盘 › 设置 | 设置 / 修改「遮屏」的解锁密码 |
 
 ---
 
-## 部署（动态构建：打包为独立目录）
+## 开始使用
 
-编译产出的 exe 依赖 Qt 的动态库，直接拷到没装 Qt 的机器上无法运行。用 `windeployqt` 把所需的 DLL 与插件复制到 exe 同级目录：
+1. **双击 `BGAssistant.exe`**，不需要安装。首次运行会在 exe 同目录生成配置文件 `BGAssistant.ini`。
+   （程序就是单个 exe，放在任意目录都能跑；仓库里若没有现成 exe，按 [BUILD.md](BUILD.md) 自行构建。）
+2. 托盘区出现**太极图标**，**左键单击**它弹出菜单（右键也可以）。
+3. 建议先做两件事：在「设置」里勾选**开机自启**、设一个**锁屏密码**。
+4. 退出：菜单最下面的**退出**。
 
-```bat
-cd /d D:\Workspaces\BG_Assistant\build-dynamic
-windeployqt --release --compiler-runtime BGAssistant.exe
-```
-
-参数说明：
-
-- `--release`：复制 Release 版 Qt 库。若构建的是 Debug 版本，改用 `--debug`。
-- `--compiler-runtime`：连同 MinGW 运行时（`libgcc_s_seh-1.dll`、`libstdc++-6.dll`、`libwinpthread-1.dll`）一并复制。缺少它们时，程序在干净的机器上会直接启动失败，且往往没有明确报错。
-
-执行后 `build-dynamic\` 目录会补入：
-
-```
-BGAssistant.exe
-Qt6Core.dll  Qt6Gui.dll  Qt6Widgets.dll
-libgcc_s_seh-1.dll  libstdc++-6.dll  libwinpthread-1.dll
-platforms\qwindows.dll
-imageformats\   styles\   tls\   ...
-```
-
-整个 `build-dynamic\` 目录即可作为免安装的绿色包分发。
-
-注意事项：
-
-- **exe 文件名是 `BGAssistant.exe`（无下划线）**，由 `CMakeLists.txt` 中的 `project(BGAssistant ...)` 决定。若写成 `BG_Assistant.exe`，`windeployqt` 会报 `Cannot find file`。
-- `windeployqt` 位于 Qt 的 `bin` 目录（`D:\Programs\Qt\6.12.0\mingw_64\bin`），系统 `PATH` 已包含该目录，普通 cmd 里可直接调用。
-- **换过编译器后要清空 `release\` 重新 `windeployqt`**：`--compiler-runtime` 拷进来的运行时 DLL 必须和编译 exe 的 GCC 同版本（现在是 15.1.0）。目录里若残留旧的 13.1.0 版 `libstdc++-6.dll` / `libgcc_s_seh-1.dll`，会被优先加载，典型症状是启动报「找不到入口点」或直接闪退。
-  > 重跑后建议比一下版本：`release\libstdc++-6.dll` 应与 `Tools\mingw1510_64\bin\libstdc++-6.dll` 一致（右键属性看「文件版本」）。若 windeployqt 仍拷了 13.1.0 的（它可能按 Qt 安装时的工具链目录去找），直接手动覆盖这三个 DLL 即可。
-- 目录分发后位置变化，需重新勾选「开机自启」，原因见下节。
-
----
-
-## 静态构建（单文件 exe）
-
-动态构建的产物要带一堆 Qt DLL。想分发单个 exe，就走静态链接：先把 Qt 用 `-static` 编一份，之后 CMake 指向它，链出来的 exe 自带 Qt 与 MinGW 运行时，**不需要 `windeployqt`，也不需要任何 DLL**。
-
-### 用法
-
-1. 按下一节「编译静态 Qt」把静态 Qt 6.12.0 装到 `D:\Programs\Qt\6.12.0-static`（**只做一次**）；
-2. 双击 `构建static.bat`，等价于：
-
-```bat
-cmake -B build -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=D:\Programs\Qt\6.12.0-static -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-```
-
-产物：`build\BGAssistant.exe`，单文件直接分发，约 12～16 MB。
-
-### 构建目录约定
-
-| 目录 | 内容 | 由谁使用 |
-| --- | --- | --- |
-| `build\` | 静态构建缓存，**产物 `build\BGAssistant.exe` 就是单文件 exe** | `构建static.bat` |
-| `build-dynamic\` | 动态构建缓存 | `构建release.bat` |
-| `release\` | 动态构建的绿色包（含 DLL） | `构建release.bat` |
-
-CMake 缓存与 Qt 的 prefix 绑定，两个 build 目录不要混用，否则每次切换都要全量重新配置。
-
-### CMake 里的静态分支
-
-`CMakeLists.txt` 通过 `Qt6::Core` 的 `TYPE` 判断是否为静态 Qt，静态时自动补两件事：
-
-```cmake
-get_target_property(_qt_core_lib_type Qt6::Core TYPE)
-if(_qt_core_lib_type STREQUAL "STATIC_LIBRARY")
-    qt_import_plugins(BGAssistant INCLUDE Qt6::QWindowsIntegrationPlugin)  # 平台插件不会被自动链入
-    if(MINGW)
-        target_link_options(BGAssistant PRIVATE -static)                   # 连 GCC 运行时一起静态链
-    endif()
-endif()
-```
-
-两处缺一不可：少了 `qt_import_plugins`，程序启动直接报 `could not find or load the Qt platform plugin "windows"`；少了 `-static`，exe 旁边仍会多出 `libstdc++-6.dll` / `libgcc_s_seh-1.dll` / `libwinpthread-1.dll`。
-
-### 代价
-
-- 静态 Qt **只有 Release 库**，用 gdb 调试时看不到 Qt 内部符号（自己的代码断点正常）。要步进 Qt 源码得再编一份 debug 静态库，又多 1～2 GB。
-- 换 MinGW 版本必须重编 Qt（`-static` 会把 libstdc++ 静态链进 exe，两代运行时混在一起链接期就可能炸）。本项目已从 13.1.0 换到 **15.1.0**，之前用 13.1.0 编过的静态 Qt 必须删掉重编。
-- 链接比动态慢几秒（要从静态库里抽取目标文件并做 dead-code 消除）。
-
----
-
-## 编译静态 Qt
-
-只需做一次。本例用 **Qt 6.12.0 源码包**（`qt-everywhere-src-6.12.0.zip`）+ **`Tools\mingw1510_64`（GCC 15.1.0）**，
-保证静态 Qt 与后续编译 BGAssistant 用的是同一个编译器。
-
-> 动态、静态两条线现在都是 **6.12.0**：动态用安装器装的官方预编译 kit（`6.12.0\mingw_64`），
-> 静态是自己从源码编的那份（`D:\Programs\Qt\6.12.0-static`）。两条线共用同一个 MinGW 15.1.0，
-> 但**不要混着用**：一个 exe 要么链动态 DLL，要么静态链，别交叉。
-
-### 1. 解压源码
-
-`qt-everywhere-src-6.12.0.zip` 解压出来就是源码根目录（`configure.bat` 就在第一层），例如：
-
-```
-D:\Programs\Qt\qt-everywhere-src-6.12.0\
-├── configure.bat
-├── qtbase\
-├── qtdeclarative\
-└── ...
-```
-
-> 如果用的是安装器里的 `Src` 目录（`D:\Programs\Qt\6.12.0\Src`），结构一样，把下面命令里的路径换掉即可。
-> 注意源码版本要和 `-prefix` 装的静态 Qt 版本一致，别拿别的版本的 `Src` 编出个 6.12.0 的目录名。
-
-### 2. 确认编译器
-
-普通 cmd 即可（系统 `PATH` 已配好），先确认版本：
-
-```bat
-g++ --version
-```
-
-必须是 **15.1.0**。**Qt 和项目必须用同一套 GCC**：之前用 13.1.0 编过静态 Qt 的话，
-先 `rmdir /s /q D:\Programs\Qt\6.12.0-static` 再重编，别混着用。
-
-### 3. 配置（在单独的空构建目录里）
-
-```bat
-mkdir D:\Programs\Qt\build-static-6120
-cd /d D:\Programs\Qt\build-static-6120
-
-D:\Programs\Qt\qt-everywhere-src-6.12.0\configure.bat -static -static-runtime -release -opensource ^
-  -confirm-license -nomake examples -nomake tests ^
-  -skip qtwebengine -skip qtmultimedia -skip qt3d -skip qtcanvaspainter ^
-  -skip qtcharts -skip qtgraphs -skip qtdatavis3d -skip qtlottie ^
-  -skip qtvirtualkeyboard -skip qtlocation -skip qtwebview ^
-  -skip qtquick3d -skip qtquick3dphysics -skip qtquicktimeline -skip qtquickeffectmaker ^
-  -skip qttools -skip qtdoc -skip qttranslations -skip qtspeech ^
-  -prefix D:\Programs\Qt\6.12.0-static
-```
-
-参数说明：
-
-- `-static`：产出静态库（`.a`），这是单文件 exe 的前提。
-- `-static-runtime`：Qt 自身也静态链接 MinGW 运行时。
-- `-opensource -confirm-license`：开源版并跳过交互式许可确认。
-- `-skip ...`：把用不到的模块排掉，编译时间从 1～3 小时降到 **30～45 分钟**。
-- `-prefix`：安装目录，`构建static.bat` 里的 `QT_STATIC` 默认指向这里。
-
-> **`-skip` 不会传递，跳过"被别人依赖"的模块会连带报错。** 上面两处是踩过的坑：
-> 1. 不跳 `qtdeclarative`（Qt Quick 运行时）——跳了的话 `qtcanvaspainter`、`qtquick3dphysics`、`qtgraphs`
->    等模块会逐个报 `Module 'X' depends on 'qtdeclarative'`，而且 Qt 一次只报一个；
-> 2. 跳过 `qttools` 就必须连 `qtdoc`、`qttranslations` 一起跳——后两者要 `qttools` 里的 `lupdate` / `lrelease`，
->    否则报 `Module 'qtdoc' depends on 'qttools'`；
-> 3. `qtspeech` 依赖被跳过的 `qtmultimedia`，所以一并跳掉。
+> 程序没有主窗口，双击 exe 后只在托盘出现图标。如果没看到，点一下任务栏右下角的 `^` 展开隐藏图标。
 >
-> 反过来说：跳过的模块必须是"没有启用中的模块依赖它"的叶子（图表、三维、多媒体、文档、翻译都属于此类）。
-
-> 本项目只用 Widgets，编出来的 Qt Quick 静态库**不会被链进 exe**（静态链接只拉用到的符号），只是占点磁盘。
-
-> 若 configure 报 `Unknown module ...`，说明那个模块在 6.12 里已经不存在（Qt 各版本模块有增删），
-> 把对应的 `-skip` 删掉再跑一次即可，其余参数不用动。
->
-> **configure 失败后重跑前，先把构建目录清空**（`rmdir /s /q D:\Programs\Qt\build-static-6120` 再 `mkdir`），
-> 残留的 `CMakeCache.txt` 会把上一次的错误配置带进来。
-
-> configure 会先自检 CMake / 编译器 / Python 版本。本机工具链已经是 MinGW 15.1.0，
-> 若还报某项版本过低，按提示用 `MaintenanceTool` 补装即可；但**再动 MinGW 就意味着这套静态库
-> 和动态构建都要重来**，升级前先想清楚。
-
-### 4. 编译并安装
-
-```bat
-mingw32-make -j8
-mingw32-make install
-```
-
-`-j8` 按 CPU 核心数调整。装完 `D:\Programs\Qt\6.12.0-static` 约 1～2 GB，中间目录 `build-static-6120` 可以直接删掉。
-
-### 5. 验证
-
-存在下面这个文件即成功，接着跑 `构建static.bat`：
-
-```bat
-dir D:\Programs\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
-```
-
-### 注意
-
-- 编译期间源码 + 中间文件约占 **20～30 GB**（6.12 的源码包比 6.9 大不少），别放在剩余空间紧张的盘。
-- 静态 Qt 与动态 Qt 可共存，互不影响；但「静态 Qt 与编译器」必须配对，换编译器就得重编。
-- 只编一次：之后改项目代码不会重编 Qt，除非换 Qt 版本、换编译器或改 `configure` 参数。
-- 漏了 `-static-runtime`（Qt 侧）或 `-static`（项目侧），exe 仍会带出三个 MinGW 运行时 DLL。
-- Qt 6.12 比 6.9 新，若本项目代码在 6.12 下有 API 变动导致编译报错，属于版本差异，改代码即可（动态 6.9 那条线不受影响）。
-
-### 常见错误
-
-都是实际踩过的，按现象对照处理：
-
-| 现象 | 原因 | 处理 |
-| --- | --- | --- |
-| `Module 'X' depends on 'Y', but building 'Y' was explicitly disabled` | `-skip` 不会传递，跳了被别人依赖的模块 | 按提示把 X 也加进 `-skip`；或干脆不跳 Y（详见上一节的三条记录） |
-| `另一个程序正在使用此文件，进程无法访问` + 某个 `.rcc/qmlcache/*.cpp` 报 Error 1 | 杀软/索引/同步盘占着刚生成的文件 | 先 `mingw32-make -j4` 重试（多数是瞬时）；仍失败就删掉那个文件再跑；根治是把构建目录加进 Defender 排除项 |
-| `cc1plus.exe: out of memory` / 编译进程直接消失 | `-j8` 并行太高，单 TU 峰值能到 2 GB | 降 `-j4` 或 `-j2` 续编 |
-| `Unknown module ...` | 该模块在这一版 Qt 里不存在 | 删掉对应的 `-skip` |
-
-**这几种失败都不用重新 `configure`**：改完参数直接 `mingw32-make` 续编，已完成的进度会保留。
+> 把 exe 挪到别的位置后，需要重新勾选一次「开机自启」——自启项里记的是 exe 的绝对路径。
 
 ---
 
-## 运行
+## 托盘菜单
 
-直接运行 `build-dynamic\BGAssistant.exe`（动态构建）或 `build\BGAssistant.exe`（静态单文件），程序常驻系统托盘（太极图标）。
+```
+设置
+────────────
+系统  ▸  路由管理
+沙箱  ▸  apifox / LocalSend / Tabby / WeGame / ...
+────────────
+锁定
+遮屏
+────────────
+退出
+```
 
-托盘左键单击弹出菜单：
-
-| 菜单项 | 功能 |
+| 菜单项 | 作用 |
 | --- | --- |
-| 设置 | 打开设置窗口，可开关「开机自启」「锁屏期间保持屏幕常亮」，修改锁屏密码 |
-| 系统 › 路由管理 | 以管理员身份打开「系统路由管理」窗口 |
-| 沙箱 › &lt;沙箱名&gt; | 启动 Sandboxie 沙箱里配置的程序（解析 `C:\Windows\Sandboxie.ini`） |
-| 锁定 | 调用系统 `LockWorkStation` 锁定 Windows |
-| 遮屏 | 启动神隐锁屏（独立子进程） |
+| 设置 | 开机自启、锁屏期间保持屏幕常亮、修改锁屏密码 |
+| 系统 › 路由管理 | 打开路由管理窗口（会请求管理员权限） |
+| 沙箱 › … | 启动对应沙箱里的程序（内容来自 Sandboxie 配置） |
+| 锁定 | 立即锁定系统 |
+| 遮屏 | 启动神隐遮屏 |
 | 退出 | 结束程序 |
 
-### 开机自启
-
-勾选后写入注册表：
-
-```
-HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
-```
-
-**注意**：写入的是当前运行中 exe 的绝对路径。若从 `build-dynamic\` 目录勾选，之后移动或删除该目录，自启项会失效，需重新勾选。
-
 ---
 
-## 神隐锁屏
+## 功能详解
 
-点击托盘「遮屏」后，程序以 `superLock` 命令行参数启动一个**独立子进程**执行锁屏，解锁后子进程退出。
+### 锁定
 
-- **视觉**：锁屏窗口全屏近乎透明（alpha=1），屏幕保持原样、肉眼看不到任何锁屏组件。
-- **输入**：键盘盲打密码，采用逐字符前缀匹配——从第一个字符开始比对，一旦不匹配立即清空重输；输入正确即自动解锁（无需回车/按钮）。
-- **屏蔽**：低级键盘钩子屏蔽 Win / Ctrl / Alt 及其组合键（Ctrl+Esc、Alt+Tab、Alt+F4、Ctrl+空格、Ctrl+Shift 等）；鼠标锁定周期把光标拉回屏幕正中央。
-- **托盘**：锁屏子进程在托盘区额外显示一个「锁」图标（父进程的太极图标保持不变）；解锁后子进程退出、锁图标随之消失。
-- **提示**：锁定时弹「已锁定」、解锁时弹「已解锁」，约 1 秒后自动消失。
+点一下立即锁定 Windows，解锁用系统账户的密码 / PIN / 指纹。
 
-### 锁屏密码
+### 遮屏（神隐锁屏）
 
-- 密码保存在 exe 同目录的 `BGAssistant.ini`（`[LockScreen]` 节的 `Password` 键），不再写注册表。
-- 采用 **AES-ECB + PKCS7** 加密后以 Base64 存储，密钥与原易语言版「神隐锁屏密码加密秘钥」常量一致（12 字节，非标准 AES，keySize=3、nRounds=9）。
-- 首次启动自动创建「无密码」的 ini 文件；未设置密码时点击「遮屏」会提示「尚未设置解锁密码！」并自动打开设置界面。
-- 修改密码：设置页「锁屏密码」分组，需依次校验「新密码不能为空」「两次新密码一致」「原密码正确」后加密保存；首次设置密码时隐藏「原密码」输入项。
+适用场景：临时离开座位，不想让别人看到屏幕上正在做什么，也不想让别人动键鼠。
 
----
+首次使用前要先在「设置 › 锁屏密码」里设一个密码——没设密码时点「遮屏」会提示，并直接打开设置窗口。
 
-## 系统路由管理
+- 屏幕上**看不到任何遮罩或提示**，桌面保持原样，只是键鼠被锁住了；
+- 解锁方式：直接**盲打密码**，输对自动解锁，不用回车、不用点任何地方；
+- 输错会自动清空，从第一个字符重新开始；
+- 锁定期间屏蔽 `Win`、`Ctrl`、`Alt` 及其组合键（`Win`、`Alt+Tab`、`Ctrl+Esc`、`Alt+F4` 等），鼠标被拉回屏幕中央；
+- 锁定时屏幕中间闪一下红色「已锁定」，解锁时闪绿色「已解锁」，约 1 秒消失；
+- 托盘区会多出一个「锁」图标，解锁后消失；
+- **只在主屏生效**：多显示器时副屏不受影响。
 
-托盘菜单「系统 → 路由管理」（窗口标题仍是「系统路由管理」）。用于配置发往不同 IP 段的数据经由不同网关转发（原易语言版同名功能的重构）。
+> ⚠️ 这不是安全锁。它能挡住顺手乱按，但挡不住任务管理器结束进程、`Ctrl+Alt+Del`、`Win+L` 这类系统级操作。真要防人，请用系统自带的锁屏。
 
-### 提权方式
+### 系统 › 路由管理
 
-添加/删除路由需要管理员权限，启动方式与原版一致：**新开一个进程，在新进程里提权**。
+适用场景：一台机器有多块网卡 / 多个网关时，让不同网段走不同出口。比如内网走有线、外网走无线，或者让某个网段强制走 VPN 网关。
 
-1. 主进程（托盘）用 `TokenElevation` 判断自己是否已是管理员。
-2. 不是管理员 → `ShellExecuteEx` + `runas` 重新启动自身，参数 `RouteManager`，触发 UAC。
-3. 新进程识别到 `RouteManager` 参数后只显示「系统路由管理」窗口、**不创建托盘图标**，关闭窗口即退出。
-4. 主进程本身已以管理员运行时直接在当前进程弹窗，不再多开一个进程。
-5. 用户点了 UAC 的「否」时静默返回；其它失败（例如 exe 被占用）弹提示说明原因。
+点这个菜单会弹 **UAC**——修改系统路由表需要管理员权限。同意后会打开路由管理窗口，主程序的托盘图标不受影响；关掉窗口，那个管理员进程也就退出了。点「否」则什么都不做。
 
-### 界面
+窗口里三行输入：
 
-与易语言原版一致：顶部两行说明、三行输入（需要配置的网段 / 该网段的子网掩码 / 该网段要使用的网关）、「是否长效路由」复选框、添加路由 / 删除路由两行、底部「显示系统路由表」。
-
-- 三个 IP 输入框仿系统 IP 地址控件实现（四段 + 点号）：段内满 3 位自动跳下一段，点号 / ←→ / Tab 在段间移动，支持直接粘贴整段 IP。
-- 掩码按网段自动推导：`0.x` → `0.0.0.0`、A 类 → `255.0.0.0`、B 类 → `255.255.0.0`、C 类 → `255.255.255.0`、D/E 类 → `255.255.255.255`。**手动改过掩码之后就不再自动覆盖。**
-- 添加会校验网段/掩码/网关是否填全；删除只要求网段（与原版一致，掩码网关忽略）。
-
-### 与原版的实现差异
-
-命令本身与原版相同：`route [-p] add <网段> mask <掩码> <网关> metric 1`、`route delete <网段>`（`-p` 按官方语法放在子命令前，原版写在 `add` 后面）。差异只在外围：
-
-| 环节 | 原版 | 本版 |
-| --- | --- | --- |
-| 执行命令 | `cmd.exe /c route ...`，会闪控制台窗口 | 直接调用 `System32\route.exe`（绝对路径），`CREATE_NO_WINDOW` 隐藏窗口 |
-| 结果校验 | `route print > %temp%\RoutePrint.txt` 再读文本 | `GetIpForwardTable2` 直接查路由表，不产生临时文件 |
-| 显示路由表 | 导出 `%temp%\RoutePrint.txt`，用 Notepad++ 打开 | 原生「系统路由表」窗口：目标网络 / 掩码 / 网关 / 接口 / 跃点数 / 长效，可刷新 |
-| 退出清理 | 关闭窗口时删除临时文件 | 没有临时文件 |
-
-「系统路由表」窗口里的「在链路上」等价于 `route print` 的 `On-link`（网关为 `0.0.0.0` 的直连网段）。
-
----
-
-## 沙箱启动
-
-托盘一级菜单「沙箱」（位于「系统」下方）。菜单内容全部来自 Sandboxie 的全局配置 `C:\Windows\Sandboxie.ini`：每个 `RunCommand` 就是一条可启动项，一个节只写了一条时菜单项就是节名（方括号里的文本），写了多条时用 `节名|键名` 区分。
-
-### 菜单结构
-
-```
-沙箱
-├── 显示启动命令      ← 列出每个沙箱的 名称 → 启动命令（可复制，用于排查）
-├── ────────────
-├── apifox
-├── LocalSend
-├── ns_usbloader
-├── tabby
-├── WeGame
-└── WinMerge
-```
-
-- 沙箱项**按名字字母序排列（忽略大小写）**，与 ini 里的书写顺序无关；同一个沙箱的多条 `RunCommand` 聚在一起，再按键名排序。
-- 一个沙箱只配了一条 `RunCommand` 时，菜单项就是沙箱名；配了多条时显示为 `沙箱名|键名`（键名即 `RunCommand=` 后面竖线前那段，例如 `WeGame|wegame.exe`），否则菜单里会出现多个同名项分不清。
-- 配置文件不存在、或没有任何带 `RunCommand` 的沙箱时，**连「沙箱」一级菜单一起不显示**，托盘上不会出现空菜单。
-- 每次弹出托盘菜单前都会重新解析一次 ini，手工改了配置后不用重启，所以菜单里**不设单独的「刷新」项**。
-- 未做映射的 `%BoxRoot%` 子布局原样传给 SandMan，由 Sandboxie 自己展开。
-
-### 路径映射规则
-
-ini 里的 `RunCommand` 写的是**沙箱内部**的落盘路径，启动前要反向映射回真实路径：
-
-| ini 里的写法 | 实际执行 |
+| 字段 | 填什么 |
 | --- | --- |
-| `RunCommand=wegame.exe\|"%BoxRoot%\drive\C\Program Files (x86)\WeGame\wegame.exe"` | `SandMan.exe /box:WeGame "C:\Program Files (x86)\WeGame\wegame.exe"` |
-| `RunCommand=Tabby.exe\|"%BoxRoot%\drive\D\Programs\tabby\Tabby.exe"` | `SandMan.exe /box:tabby "D:\Programs\tabby\Tabby.exe"` |
-| `RunCommand=Apifox.exe\|"%BoxRoot%\user\current\AppData\Local\Programs\Apifox\Apifox.exe"` | `SandMan.exe /box:apifox "C:\Users\<用户>\AppData\Local\Programs\Apifox\Apifox.exe"` |
-| `RunCommand=WinMergeU.exe\|"D:\Programs\WinMerge\WinMergeU.exe"` | `SandMan.exe /box:WinMerge "D:\Programs\WinMerge\WinMergeU.exe"`（本来就是真实路径，原样使用） |
+| 需要配置的网段 | 目标网段，如 `192.168.5.0`；配外网网关时填 `0.0.0.0` |
+| 该网段的子网掩码 | 按网段自动填（A/B/C 类），**手动改过之后就不再自动覆盖** |
+| 该网段要使用的网关 | 这个网段的流量从哪个网关出去 |
 
-即：
+- 勾选**是否长效路由**，重启后规则依然有效；不勾选则重启后失效。
+- **添加路由**：写入一条路由。
+- **删除路由**：按网段删除，掩码和网关会被忽略（只需填网段）。
+- 三个 IP 输入框都是四段式：输满一段自动跳到下一段，也可以用 `→` `Tab` 或直接打点号切换，支持直接粘贴整段 IP。
+- **显示系统路由表**：打开原生表格，列出目标网络 / 子网掩码 / 网关 / 接口 / 跃点数 / 长效，右上角可刷新。表里网关显示「在链路上」表示该网段是直连，不经过网关。
 
-- `%BoxRoot%\drive\<盘符>\<其余>` → `<盘符>:\<其余>`
-- `%BoxRoot%\user\current\<其余>` → `<当前用户目录>\<其余>`
-- 不带 `%BoxRoot%` 的路径 → 原样使用
+> 这里改的是真实的系统路由表，删错网关可能导致断网。拿不准时先点「显示系统路由表」看看现状，再动手。
 
-完整命令行格式：`"<SandMan.exe 路径>" /box:<沙箱名> "<映射后的程序路径>"`。
+### 沙箱（Sandboxie）
 
-### 实现要点
+前提：装了 [Sandboxie-Plus](https://sandboxie-plus.com/)，并且 `C:\Windows\Sandboxie.ini` 里有配好的 `RunCommand`。
 
-- `SandMan.exe` 依次在 `%ProgramW6432%`、`%ProgramFiles%`、`%ProgramFiles(x86)%` 下的 `Sandboxie-Plus\` / `Sandboxie\` 里查找，找不到时按默认路径 `C:\Program Files\Sandboxie-Plus\SandMan.exe` 启动并弹提示。
-- ini 编码自动识别：带 BOM 的 UTF-16 LE/BE、无 BOM 的 UTF-16、UTF-8，最后回退到系统本地编码（简中为 GBK）。**Sandboxie 默认写的是 UTF-16 LE**，按 UTF-8 硬读会全是乱码。
-- 启动用 `QProcess::startDetached` 传参数列表，路径里的空格不需要手工转义；展示用的命令行与实际参数一一对应。
-- 同一沙箱写了多条 `RunCommand` 时，每条都是独立的菜单项（名称加 `|键名` 后缀），不会互相覆盖；完全相同的重复行（同节、同键、同路径）只保留一条。
-- 排序用 `std::stable_sort` + `Qt::CaseInsensitive` 比较：仅大小写不同的名字保持 ini 里的先后顺序。
+- 菜单内容**全部来自 Sandboxie 配置**，程序本身不保存任何沙箱列表；
+- 一个沙箱只配了一条 `RunCommand`，菜单显示沙箱名；配了多条时显示为 `沙箱名|键名`，避免重名分不清；
+- 按名字字母序排列（忽略大小写）；
+- **每次弹出菜单都会重新读取配置**，改完 ini 不用重启程序；
+- 没装 Sandboxie、或一个 `RunCommand` 都没配时，整个「沙箱」菜单不显示；
+- 菜单第一项「显示启动命令」会列出每个沙箱最终执行的命令行，排查启动问题时用。
 
----
+沙箱配置里写的是**沙箱内的路径**，启动时会自动映射回真实路径：
 
-## 注意事项
+| ini 里的写法 | 实际启动 |
+| --- | --- |
+| `%BoxRoot%\drive\C\Program Files\WeGame\wegame.exe` | `C:\Program Files\WeGame\wegame.exe` |
+| `%BoxRoot%\user\current\AppData\Local\Programs\Apifox\Apifox.exe` | `C:\Users\<你的用户名>\AppData\Local\Programs\Apifox\Apifox.exe` |
+| `D:\Programs\WinMerge\WinMergeU.exe` | 原样使用（本来就是真实路径） |
 
-- **外部系统命令一律用 `System32` 绝对路径启动**（`elevation.*` 里的 `system32Path()`，内部走 `GetSystemDirectoryW`，不写死盘符）。
-  `CreateProcess` 解析相对名时按「应用程序自身目录 → 当前目录 → System32 → Windows 目录 → PATH」搜索，
-  在提权进程里用相对名（原来的 `route.exe`）等于把管理员权限交给同目录下的同名 exe，属于提权漏洞；
-  已改为绝对路径的：`route.exe`（路由管理，提权）、`rundll32.exe`（锁定，非提权但同理）。
-- **报 `Could not find a package configuration file provided by "Qt6"`** → `CMAKE_PREFIX_PATH` 没指向 kit 目录，或指到了已不存在的旧版本路径。
-  两个 `构建*.bat` 内部已传好（`QT_KIT` / `QT_STATIC` 变量），手工构建时别漏了 `-DCMAKE_PREFIX_PATH`。
-- **编译器和 Qt 必须成对。** 本项目现用 MinGW **15.1.0**（`Tools\mingw1510_64`），已从 13.1.0 升级，连带影响：
-  1. 动态构建：`windeployqt --compiler-runtime` 现在拷 15.1.0 的运行时，`release\` 里残留的旧 13.1.0 DLL 要清掉重跑，否则会「找不到入口点」；
-  2. 静态构建：静态 Qt 必须用 15.1.0 重编（`-static` 会把 libstdc++ 一起链进 exe，混两代运行时会在链接期或运行期炸）；
-  3. **代码本身无需改动**：全部 4 处 `std::` 用法（`wstring` / `sort` / `stable_sort` / `swap`）都有对应头文件（`<string>` / `<algorithm>` / `<utility>`），
-     没有用到 Qt 6 已移除的 API（`QRegExp`、`QTextCodec` 等），三处 `windows.h` 都带 `NOMINMAX`；
-     GCC 15 只是默认警告更多，项目没开 `-Werror`，不会因此编不过。
-  4. 动态构建链的是官方预编译的 Qt 6.12.0 库，和 `Tools\mingw1510_64` 是安装器配套的一套，正常情况下直接可用；
-     只有另行换掉 MinGW（换成别的大版本）才会遇到 `undefined reference to std::...` 或运行期缺符号，把 MinGW 换回配套版本即可，代码不用动。
-- **神隐锁屏不是安全锁。** 它用于防止他人误操作键盘/鼠标，无法阻止任务管理器结束进程、`Ctrl+Alt+Del`、`Win+L` 等系统级操作；多显示器环境下目前仅覆盖主屏。
-- **托盘图标动画持续播放是有意设计。** 太极图标以 40ms 间隔循环播放（`main.cpp` 中的 `QTimer`），常驻重绘属于预期行为，不作为待优化项，代码审查时无需再提出。
-- `icons\app.ico` 通过 `app.rc.in` 生成 `app.rc` 后编入 exe 的资源段，这是 exe 图标生效的唯一途径（CMake 没有 `WINDOWS_ICON` 属性）。
+即：`%BoxRoot%\drive\<盘符>\...` → `<盘符>:\...`，`%BoxRoot%\user\current\...` → 当前用户目录，其余原样。
+
+### 设置
+
+| 选项 | 说明 |
+| --- | --- |
+| 开机自启 | 勾选后写入当前用户的启动项，登录 Windows 自动运行 |
+| 锁屏期间保持屏幕常亮 | 遮屏期间阻止显示器休眠熄屏（默认不勾选） |
+| 锁屏密码 | 设置 / 修改遮屏的解锁密码，新密码不能为空，需输入两次确认；已设过密码时要先输原密码 |
 
 ---
 
-## 目录结构
+## 文件与注册表
 
-```
-.
-├── CMakeLists.txt      构建配置（含静态 Qt 分支）
-├── app.rc.in           exe 图标资源模板（由 CMake 生成 app.rc）
-├── 构建release.bat     动态构建（build-dynamic + windeployqt）
-├── 构建static.bat      静态构建（build + 单文件 exe）
-├── 更新git代码.bat     git pull 拉取更新
-├── LICENSE             GPLv3 许可证全文
-├── main.cpp            程序入口、托盘与菜单、锁屏子进程分支
-├── mainwindow.*        主窗口（预留，当前未显示）
-├── configform.*        设置窗口（开机自启、锁屏常亮、锁屏密码）
-├── lockscreen.*        神隐锁屏（全屏遮屏、盲打密码解锁）
-├── routemanager.*      系统路由管理窗口（添加/删除路由 + 系统路由表弹窗）
-├── routequery.*        读取 IPv4 路由表（IP Helper API + 长效路由注册表）
-├── sandboxie.*         解析 Sandboxie.ini、路径映射、启动沙箱
-├── sandboxmenu.*       托盘「沙箱」菜单（含「显示启动命令」窗口）
-├── ipaddressedit.*     仿系统 IP 地址控件的四段输入框
-├── elevation.*         管理员提权（ShellExecuteEx runas）
-├── aes.*               AES-ECB 加密（纯 C++ 实现，无外部依赖）
-├── resources.qrc       图标资源清单
-└── icons/              图标资源
-```
+程序只碰这两处，其余什么都不写：
+
+| 内容 | 位置 | 说明 |
+| --- | --- | --- |
+| 配置文件 | exe 同目录 `BGAssistant.ini` | 锁屏密码（AES 加密后存 Base64）、是否保持屏幕常亮 |
+| 开机自启 | `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run` | 值为 exe 绝对路径；取消勾选即删除该项 |
+
+配置文件随程序走：把 exe 和 ini 一起拷到别的机器，密码设置也会跟着过去；只拷 exe 则视为首次运行、需要重新设置密码。
+
+---
+
+## 系统要求
+
+- Windows 10 / 11（64 位）
+- 单文件绿色版，不需要装运行库，也不需要管理员账户常驻
+- 只有「路由管理」需要管理员权限，其余功能普通账户即可
+
+---
+
+## 常见问题
+
+**点了「遮屏」，提示「尚未设置解锁密码！」**
+先去「设置 › 锁屏密码」设一个密码，再点遮屏。
+
+**忘了遮屏密码怎么办？**
+退出程序，用记事本打开 exe 同目录的 `BGAssistant.ini`，删掉 `[LockScreen]` 下的 `Password=` 那一行（或直接删掉整个 ini），重新启动程序后再设一个新密码。删除配置文件不影响任何系统设置。
+
+**点「路由管理」弹 UAC，能不让它弹吗？**
+不能。修改系统路由表必须有管理员权限，这是 Windows 的限制。点「否」不会执行任何操作。
+
+**路由表里的「在链路上」是什么意思？**
+表示这条路由是直连网段，网关为 `0.0.0.0`，数据不经过网关转发（对应 `route print` 里的 `On-link`）。
+
+**托盘里的「沙箱」菜单不见了？**
+需要装 Sandboxie-Plus，且 `C:\Windows\Sandboxie.ini` 里至少有一个带 `RunCommand` 的沙箱。配置好后重开一次托盘菜单即可，不用重启程序。
+
+**托盘图标一直在转，正常吗？**
+正常，那是太极动画，表示程序正在运行。
+
+**双击 exe 没反应？**
+它没有主窗口，启动后只出现在托盘。检查一下任务栏右下角的 `^` 隐藏图标区。
+
+**遮屏后屏幕黑了 / 亮不起来？**
+在「设置」里勾选「锁屏期间保持屏幕常亮」，遮屏期间就不会进入息屏状态。
+
+---
+
+## 从源码构建
+
+面向开发者的构建、部署、静态 Qt 编译与排错说明单独放在 **[BUILD.md](BUILD.md)**，普通使用不需要看。
 
 ---
 
 ## 许可证
 
-本项目采用 **GNU General Public License v3.0（GPLv3）** 发布，全文见仓库根目录的 [LICENSE](LICENSE)。
+本项目采用 **GNU General Public License v3.0（GPLv3）** 发布，全文见 [LICENSE](LICENSE)。
 
-```
-BG_Assistant
-Copyright (C) 2026 BlueGhostJ
+选用 GPLv3 是因为发布的是**静态链接 Qt 的单文件 exe**；若需以 LGPLv3 方式使用 Qt，请改为动态链接构建（见 [BUILD.md](BUILD.md)）。
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-```
-
-### 为什么是 GPLv3
-
-- 本项目基于 **Qt 6**，其开源版以 GPLv3 / LGPLv3 双许可提供。**静态构建（`构建static.bat`）把 Qt 直接链进 exe**，属于分发二进制，选 GPLv3 是与之最省心的组合（另一条路是动态链接 + 满足 LGPLv3）。
-- 若你打算以 LGPLv3 方式使用 Qt 而不公开源码，请改回动态构建，并遵守 LGPLv3 关于替换 Qt 库的要求。
-
-### 再分发时注意
-
-- 分发 exe 时**同时提供本仓库源码**（或书面提供源码的途径），这是 GPLv3 的核心义务。
-- 不得附加额外限制条款；修改后的版本同样以 GPLv3 发布。
-- 若从他人处获得修改版，对方同样受 GPLv3 约束。
+再分发时请同时提供本仓库源码，或以书面形式提供获取源码的途径——这是 GPLv3 的核心义务。
