@@ -15,10 +15,6 @@
 SandboxMenu::SandboxMenu(QWidget *parent)
     : QMenu(QStringLiteral("沙箱"), parent)
 {
-    // QMenu 默认不显示 QAction 的 tooltip（toolTipsVisible 默认 false），
-    // 不打开的话下面 refresh() 里的 setToolTip 等于白设。
-    // Windows 上的菜单是 Qt 自绘弹窗（不是系统原生菜单），打开后悬停提示正常生效。
-    setToolTipsVisible(true);
 }
 
 void SandboxMenu::refresh()
@@ -38,8 +34,6 @@ void SandboxMenu::refresh()
         addSeparator();
         for (const SandboxEntry &entry : m_entries) {
             QAction *action = addAction(entry.menuTitle);
-            // 悬停预览完整命令行，便于排查（需要构造函数里的 setToolTipsVisible(true) 才生效）
-            action->setToolTip(entry.commandLine);
             connect(action, &QAction::triggered, this, [this, entry]() { launchEntry(entry); });
         }
     }
