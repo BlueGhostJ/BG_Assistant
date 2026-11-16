@@ -1,10 +1,10 @@
 #include "routemanager.h"
 #include "ui_routemanager.h"
 
+#include "elevation.h"
 #include "ipaddressedit.h"
 #include "routequery.h"
 #include "routetabledialog.h"
-#include "systempaths.h"
 
 #include <QFileInfo>
 #include <QIcon>

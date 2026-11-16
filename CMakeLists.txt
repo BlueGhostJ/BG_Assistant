@@ -32,8 +32,6 @@ set(PROJECT_SOURCES
         sandboxie.h
         sandboxmenu.cpp
         sandboxmenu.h
-        systempaths.cpp
-        systempaths.h
         ipaddressedit.cpp
         ipaddressedit.h
         elevation.cpp

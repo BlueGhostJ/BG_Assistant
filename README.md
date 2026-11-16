@@ -431,7 +431,7 @@ ini 里的 `RunCommand` 写的是**沙箱内部**的落盘路径，启动前要�
 
 ## 注意事项
 
-- **外部系统命令一律用 `System32` 绝对路径启动**（`system32Path()`，内部走 `GetSystemDirectoryW`，不写死盘符）。
+- **外部系统命令一律用 `System32` 绝对路径启动**（`elevation.*` 里的 `system32Path()`，内部走 `GetSystemDirectoryW`，不写死盘符）。
   `CreateProcess` 解析相对名时按「应用程序自身目录 → 当前目录 → System32 → Windows 目录 → PATH」搜索，
   在提权进程里用相对名（原来的 `route.exe`）等于把管理员权限交给同目录下的同名 exe，属于提权漏洞；
   已改为绝对路径的：`route.exe`（路由管理，提权）、`rundll32.exe`（锁定，非提权但同理）。
