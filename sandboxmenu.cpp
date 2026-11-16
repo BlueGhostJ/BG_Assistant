@@ -15,6 +15,10 @@
 SandboxMenu::SandboxMenu(QWidget *parent)
     : QMenu(QStringLiteral("沙箱"), parent)
 {
+    // 目前菜单项都不设 tooltip（完整命令行统一在「显示启动命令」里看），
+    // 这里先打开开关作为扩展点：以后想给某一项加悬停提示，直接 setToolTip 就能显示，
+    // 否则 QMenu 默认会吞掉 tooltip。没有 action 设置 tooltip 时，它不产生任何可见行为。
+    setToolTipsVisible(true);
 }
 
 void SandboxMenu::refresh()
