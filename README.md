@@ -302,7 +302,7 @@ dir D:\Programs\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
 | 菜单项 | 功能 |
 | --- | --- |
 | 设置 | 打开设置窗口，可开关「开机自启」「锁屏期间保持屏幕常亮」，修改锁屏密码 |
-| 系统 › 系统路由管理 | 以管理员身份打开系统路由管理窗口（新增） |
+| 系统 › 路由管理 | 以管理员身份打开「系统路由管理」窗口 |
 | 沙箱 › &lt;沙箱名&gt; | 启动 Sandboxie 沙箱里配置的程序（解析 `C:\Windows\Sandboxie.ini`） |
 | 锁定 | 调用系统 `LockWorkStation` 锁定 Windows |
 | 遮屏 | 启动神隐锁屏（独立子进程） |
@@ -341,7 +341,7 @@ HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
 
 ## 系统路由管理
 
-托盘菜单「系统 → 系统路由管理」。用于配置发往不同 IP 段的数据经由不同网关转发（原易语言版同名功能的重构）。
+托盘菜单「系统 → 路由管理」（窗口标题仍是「系统路由管理」）。用于配置发往不同 IP 段的数据经由不同网关转发（原易语言版同名功能的重构）。
 
 ### 提权方式
 
@@ -367,7 +367,7 @@ HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
 
 | 环节 | 原版 | 本版 |
 | --- | --- | --- |
-| 执行命令 | `cmd.exe /c route ...`，会闪控制台窗口 | 直接调用 `route.exe`，`CREATE_NO_WINDOW` 隐藏窗口 |
+| 执行命令 | `cmd.exe /c route ...`，会闪控制台窗口 | 直接调用 `System32\route.exe`（绝对路径），`CREATE_NO_WINDOW` 隐藏窗口 |
 | 结果校验 | `route print > %temp%\RoutePrint.txt` 再读文本 | `GetIpForwardTable2` 直接查路由表，不产生临时文件 |
 | 显示路由表 | 导出 `%temp%\RoutePrint.txt`，用 Notepad++ 打开 | 原生「系统路由表」窗口：目标网络 / 掩码 / 网关 / 接口 / 跃点数 / 长效，可刷新 |
 | 退出清理 | 关闭窗口时删除临时文件 | 没有临时文件 |
@@ -431,6 +431,10 @@ ini 里的 `RunCommand` 写的是**沙箱内部**的落盘路径，启动前要�
 
 ## 注意事项
 
+- **外部系统命令一律用 `System32` 绝对路径启动**（`system32Path()`，内部走 `GetSystemDirectoryW`，不写死盘符）。
+  `CreateProcess` 解析相对名时按「应用程序自身目录 → 当前目录 → System32 → Windows 目录 → PATH」搜索，
+  在提权进程里用相对名（原来的 `route.exe`）等于把管理员权限交给同目录下的同名 exe，属于提权漏洞；
+  已改为绝对路径的：`route.exe`（路由管理，提权）、`rundll32.exe`（锁定，非提权但同理）。
 - **报 `Could not find a package configuration file provided by "Qt6"`** → `CMAKE_PREFIX_PATH` 没指向 kit 目录，或指到了已不存在的旧版本路径。
   两个 `构建*.bat` 内部已传好（`QT_KIT` / `QT_STATIC` 变量），手工构建时别漏了 `-DCMAKE_PREFIX_PATH`。
 - **编译器和 Qt 必须成对。** 本项目现用 MinGW **15.1.0**（`Tools\mingw1510_64`），已从 13.1.0 升级，连带影响：

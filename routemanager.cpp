@@ -4,7 +4,9 @@
 #include "ipaddressedit.h"
 #include "routequery.h"
 #include "routetabledialog.h"
+#include "systempaths.h"
 
+#include <QFileInfo>
 #include <QIcon>
 #include <QMessageBox>
 #include <QProcess>
@@ -34,8 +36,16 @@ CommandResult runRoute(const QStringList &arguments)
 {
     CommandResult result;
 
+    // 必须用 System32 的绝对路径：CreateProcess 解析相对名时优先搜「应用程序自身目录」，
+    // 本窗口跑在提权子进程里，同目录放个假的 route.exe 就等于拿到了管理员权限。
+    const QString routeExe = system32Path(QStringLiteral("route.exe"));
+    if (routeExe.isEmpty() || !QFileInfo::exists(routeExe)) {
+        result.output = QStringLiteral("找不到系统目录下的 route.exe，无法执行路由命令。");
+        return result;
+    }
+
     QProcess process;
-    process.setProgram(QStringLiteral("route.exe"));
+    process.setProgram(routeExe);
     process.setArguments(arguments);
 #ifdef Q_OS_WIN
     process.setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments *args) {

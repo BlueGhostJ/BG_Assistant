@@ -13,6 +13,7 @@
 #include "lockscreen.h"
 #include "routemanager.h"
 #include "sandboxmenu.h"
+#include "systempaths.h"
 
 // 打开「系统路由管理」：当前进程已是管理员就直接开窗；否则用 runas 拉起一个新进程，
 // 由新进程的 RouteManager 分支显示窗口（对齐原版「管理员运行」+「参数处理」的做法）。
@@ -115,7 +116,11 @@ int main(int argc, char *argv[])
 
     QAction *lockAction = new QAction("锁定", &trayMenu);
     QObject::connect(lockAction, &QAction::triggered, []() {
-        QProcess::startDetached("rundll32.exe", QStringList() << "user32.dll,LockWorkStation");
+        // 用 System32 的绝对路径启动，避免应用目录下的同名 exe 被 CreateProcess 优先命中
+        const QString rundll32 = system32Path(QStringLiteral("rundll32.exe"));
+        if (rundll32.isEmpty())
+            return;
+        QProcess::startDetached(rundll32, QStringList() << QStringLiteral("user32.dll,LockWorkStation"));
     });
 
     QAction *lockScreenAction = new QAction("遮屏", &trayMenu);
