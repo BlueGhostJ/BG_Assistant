@@ -20,8 +20,16 @@ class ChromeProfileForm : public QDialog
     Q_OBJECT
 
 public:
+    // 新建时只填名称：数据目录自动取「全局位置\<名称>」，不需要用户操心；
+    // 编辑时才显示「数据目录」一行（可浏览、可一键改回全局目录）。
+    enum Mode
+    {
+        CreateMode,
+        EditMode
+    };
+
     // others：已有的其它多开，用来做重名检查（不包含正在编辑的这一项）
-    explicit ChromeProfileForm(const QList<ChromeProfile> &others, QWidget *parent = nullptr);
+    ChromeProfileForm(Mode mode, const QList<ChromeProfile> &others, QWidget *parent = nullptr);
     ~ChromeProfileForm() override;
 
     void setProfile(const ChromeProfile &profile);
@@ -31,6 +39,7 @@ private:
     Ui::ChromeProfileForm *ui;
 
     QList<ChromeProfile> m_others;
+    Mode m_mode = EditMode;
     QString m_originalName;        // 编辑前的名称，只用来决定窗口标题
     bool m_dataDirEdited = false;  // 用户手动指定过数据目录（之后不再跟着名称变化）
 

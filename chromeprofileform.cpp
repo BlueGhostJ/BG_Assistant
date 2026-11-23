@@ -25,13 +25,23 @@ QString stripped(QString text)
 
 } // namespace
 
-ChromeProfileForm::ChromeProfileForm(const QList<ChromeProfile> &others, QWidget *parent)
+ChromeProfileForm::ChromeProfileForm(Mode mode, const QList<ChromeProfile> &others, QWidget *parent)
     : QDialog(parent)
     , ui(new Ui::ChromeProfileForm)
     , m_others(others)
+    , m_mode(mode)
 {
     ui->setupUi(this);
     setWindowIcon(QIcon(QStringLiteral(":/icon/icons/app.ico")));
+
+    // 新建时不让用户填数据目录：默认就是 <全局位置>\<名称>，创建后记进配置；
+    // 需要单独指定目录时再进「编辑」（那里有浏览 / 用全局目录）。
+    const bool showDataDir = (m_mode == EditMode);
+    ui->dataDirTitleLabel->setVisible(showDataDir);
+    ui->dataDirEdit->setVisible(showDataDir);
+    ui->browseDataDirButton->setVisible(showDataDir);
+    ui->globalDataDirButton->setVisible(showDataDir);
+    ui->dataDirHintLabel->setVisible(showDataDir);
 
     // 输入框吃掉多余宽度，标签列保持原宽
     ui->basicLayout->setColumnStretch(1, 1);
@@ -222,6 +232,15 @@ ChromeProfile ChromeProfileForm::profile() const
 
 QString ChromeProfileForm::currentDataDir() const
 {
+    // 新建时没有目录输入框：直接按名称推导成「全局位置\<名称>」，创建时一并记进配置
+    if (m_mode == CreateMode) {
+        const QString name = ui->nameEdit->text().trimmed();
+        QString reason;
+        if (!ChromeMultiOpen::isValidName(name, &reason))
+            return QString();
+        return QDir::cleanPath(ChromeMultiOpen::dataDirFor(name));
+    }
+
     return QDir::cleanPath(QDir::fromNativeSeparators(ui->dataDirEdit->text().trimmed()));
 }
 
@@ -276,10 +295,17 @@ void ChromeProfileForm::submit()
     for (const ChromeProfile &other : m_others) {
         if (!ChromeMultiOpen::samePath(ChromeMultiOpen::profileDataDir(other), dataDir))
             continue;
-        QMessageBox::warning(this, windowTitle(),
-                             QStringLiteral("这个数据目录已经被多开「%1」使用了。\n\n"
-                                            "两个多开共用同一个目录会抢同一份登录状态，请换一个目录。")
-                                 .arg(other.name));
+
+        // 新建时目录是自动生成的、不能改，所以提示里要告诉用户换名称或先挪开别人的目录
+        const QString text =
+            m_mode == CreateMode
+                ? QStringLiteral("按这个名称生成的数据目录已经被多开「%1」使用了：\n%2\n\n"
+                                 "请换一个名称；或者先编辑「%1」把它的数据目录挪开。")
+                      .arg(other.name, QDir::toNativeSeparators(dataDir))
+                : QStringLiteral("这个数据目录已经被多开「%1」使用了。\n\n"
+                                 "两个多开共用同一个目录会抢同一份登录状态，请换一个目录。")
+                      .arg(other.name);
+        QMessageBox::warning(this, windowTitle(), text);
         return;
     }
 

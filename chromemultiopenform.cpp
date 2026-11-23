@@ -273,7 +273,7 @@ QString ChromeMultiOpenForm::uniqueCopyName(const QString &base) const
 
 void ChromeMultiOpenForm::newProfile()
 {
-    ChromeProfileForm dialog(m_profiles, this);
+    ChromeProfileForm dialog(ChromeProfileForm::CreateMode, m_profiles, this);
     if (dialog.exec() != QDialog::Accepted)
         return;
 
@@ -299,7 +299,7 @@ void ChromeMultiOpenForm::editProfile(int row)
     QList<ChromeProfile> others = m_profiles;
     others.removeAt(row);
 
-    ChromeProfileForm dialog(others, this);
+    ChromeProfileForm dialog(ChromeProfileForm::EditMode, others, this);
     dialog.setProfile(original);
     if (dialog.exec() != QDialog::Accepted)
         return;
