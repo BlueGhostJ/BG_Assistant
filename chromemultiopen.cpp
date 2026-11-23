@@ -290,6 +290,7 @@ QList<ChromeProfile> ChromeMultiOpen::loadProfiles()
         profile.startFullscreen = ini.value(QStringLiteral("StartFullscreen"), false).toBool();
         profile.kiosk = ini.value(QStringLiteral("Kiosk"), false).toBool();
         profile.forceScale150 = ini.value(QStringLiteral("ForceScale150"), false).toBool();
+        profile.noImages = ini.value(QStringLiteral("NoImages"), false).toBool();
 
         profile.useWindowName = ini.value(QStringLiteral("UseWindowName"), false).toBool();
         profile.windowName = ini.value(QStringLiteral("WindowName")).toString();
@@ -332,6 +333,7 @@ bool ChromeMultiOpen::saveProfiles(const QList<ChromeProfile> &profiles)
         ini.setValue(QStringLiteral("StartFullscreen"), profile.startFullscreen);
         ini.setValue(QStringLiteral("Kiosk"), profile.kiosk);
         ini.setValue(QStringLiteral("ForceScale150"), profile.forceScale150);
+        ini.setValue(QStringLiteral("NoImages"), profile.noImages);
         ini.setValue(QStringLiteral("UseWindowName"), profile.useWindowName);
         ini.setValue(QStringLiteral("WindowName"), profile.windowName);
     }
@@ -377,6 +379,8 @@ QString ChromeMultiOpen::optionSummary(const ChromeProfile &profile)
 
     if (profile.forceScale150)
         parts << QStringLiteral("缩放 150%");
+    if (profile.noImages)
+        parts << QStringLiteral("无图模式");
     if (profile.useUserAgent && !profile.userAgent.trimmed().isEmpty())
         parts << QStringLiteral("自定义 UA");
     if (profile.useWindowName && !profile.windowName.trimmed().isEmpty())
@@ -430,6 +434,10 @@ QStringList ChromeMultiOpen::buildArguments(const ChromeProfile &profile)
 
     if (profile.forceScale150)
         arguments << QStringLiteral("--force-device-scale-factor=1.5");
+
+    // 无图模式：按 bat 模板原样用单横线，Chrome 认这个写法
+    if (profile.noImages)
+        arguments << QStringLiteral("-blink-settings=imagesEnabled=false");
 
     const QString windowName = stripped(profile.windowName);
     if (profile.useWindowName && !windowName.isEmpty())

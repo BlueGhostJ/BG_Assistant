@@ -147,6 +147,7 @@ chrome多开\
 | 指定窗口位置 | `--window-position=x,y` |
 | 启动最大化 / 强制全屏 / 演示（无边框全屏） | `--start-maximized` / `--start-fullscreen` / `--kiosk`，三者互斥 |
 | 强制缩放 150% | `--force-device-scale-factor=1.5` |
+| 无图模式 | `-blink-settings=imagesEnabled=false`（不加载图片，省流量） |
 | 指定窗口名称（仅首次生效） | `--window-name="..."` |
 
 浏览器缓存单独放在 `%TEMP%\<名称>`（`--disk-cache-dir`），不占数据目录的空间，拷走数据目录时也不会带上几百 MB 缓存。配置存在 `BGAssistant.ini` 的 `[ChromeMultiOpen]` 分组里。

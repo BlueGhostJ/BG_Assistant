@@ -60,6 +60,7 @@ ChromeProfileForm::ChromeProfileForm(Mode mode, const QList<ChromeProfile> &othe
         ui->userAgentCheckBox, ui->appModeCheckBox,    ui->windowSizeCheckBox,
         ui->windowPositionCheckBox, ui->windowNameCheckBox, ui->maximizedCheckBox,
         ui->fullscreenCheckBox, ui->kioskCheckBox,     ui->scale150CheckBox,
+        ui->noImagesCheckBox,
     };
     for (QCheckBox *check : optionChecks) {
         connect(check, &QCheckBox::toggled, this, [this]() {
@@ -166,6 +167,7 @@ void ChromeProfileForm::setProfile(const ChromeProfile &profile)
     ui->windowNameEdit->setText(profile.windowName);
 
     ui->scale150CheckBox->setChecked(profile.forceScale150);
+    ui->noImagesCheckBox->setChecked(profile.noImages);
 
     // 三个开窗方式互斥：按「最大化 → 全屏 → 演示」的顺序勾选，
     // 后勾的会取消前面的，最终与 optionSummary/buildArguments 的优先级一致。
@@ -223,6 +225,7 @@ ChromeProfile ChromeProfileForm::profile() const
     profile.startFullscreen = ui->fullscreenCheckBox->isChecked();
     profile.kiosk = ui->kioskCheckBox->isChecked();
     profile.forceScale150 = ui->scale150CheckBox->isChecked();
+    profile.noImages = ui->noImagesCheckBox->isChecked();
 
     profile.useWindowName = ui->windowNameCheckBox->isChecked();
     profile.windowName = stripped(ui->windowNameEdit->text());

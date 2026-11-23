@@ -45,6 +45,7 @@ struct ChromeProfile
     bool startFullscreen = false; // --start-fullscreen
     bool kiosk = false;           // --kiosk（演示 / 无边框全屏）
     bool forceScale150 = false;   // --force-device-scale-factor=1.5
+    bool noImages = false;        // -blink-settings=imagesEnabled=false（无图模式）
 
     bool useWindowName = false;
     QString windowName;           // --window-name=...（仅首次生效）
