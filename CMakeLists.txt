@@ -26,6 +26,11 @@ set(PROJECT_SOURCES
         routemanager.ui
         routequery.cpp
         routequery.h
+        portproxy.cpp
+        portproxy.h
+        portproxyform.cpp
+        portproxyform.h
+        portproxyform.ui
         sandboxie.cpp
         sandboxie.h
         sandboxmenu.cpp
@@ -78,10 +83,11 @@ endif()
 # 而 CMake 默认不把源目录放进 include 路径，所以要把源目录显式加进来。
 target_include_directories(BGAssistant PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-# 系统路由管理：iphlpapi 读路由表（GetIpForwardTable2 / GetAdaptersAddresses），
+# 系统路由管理：iphlpapi 读路由表（GetIpForwardTable2 / GetAdaptersAddresses）；
+# 端口转发查 IP Helper 服务状态用 advapi32（OpenSCManager / QueryServiceStatus）；
 # elevation 提权用 ShellExecuteExW（MinGW 默认就会带 shell32，显式写上更稳）
 if(WIN32)
-    target_link_libraries(BGAssistant PRIVATE iphlpapi shell32)
+    target_link_libraries(BGAssistant PRIVATE iphlpapi shell32 advapi32)
 endif()
 
 # 注意这里不能写 if(${QT_VERSION} ...)：变量为空时展开成 if( VERSION_LESS 6.1.0)，

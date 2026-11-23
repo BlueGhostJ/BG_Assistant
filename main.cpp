@@ -11,6 +11,7 @@
 #include "configform.h"
 #include "elevation.h"
 #include "lockscreen.h"
+#include "portproxyform.h"
 #include "routemanager.h"
 #include "sandboxmenu.h"
 
@@ -27,6 +28,22 @@ static void openRouteManager()
     QString error;
     if (!runAsAdmin(QStringLiteral("RouteManager"), &error) && !error.isEmpty()) {
         QMessageBox::warning(nullptr, QStringLiteral("系统路由管理"),
+                             QStringLiteral("以管理员身份启动失败：%1").arg(error));
+    }
+}
+
+// 打开「端口转发」：与路由管理同一套提权方式——新进程 + runas + PortProxyManager 参数。
+static void openPortProxyManager()
+{
+    if (isProcessElevated()) {
+        PortProxyForm form;
+        form.exec();
+        return;
+    }
+
+    QString error;
+    if (!runAsAdmin(QStringLiteral("PortProxyManager"), &error) && !error.isEmpty()) {
+        QMessageBox::warning(nullptr, QStringLiteral("端口转发"),
                              QStringLiteral("以管理员身份启动失败：%1").arg(error));
     }
 }
@@ -83,6 +100,20 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    // 端口转发子进程：与路由管理同一套流程，只显示端口转发窗口、不建托盘。
+    if (app.arguments().contains(QStringLiteral("PortProxyManager"))) {
+        if (!isProcessElevated()) {
+            QMessageBox::warning(nullptr, QStringLiteral("端口转发"),
+                                 QStringLiteral("未获得管理员权限，无法管理端口转发规则。"));
+            return 0;
+        }
+
+        QApplication::setQuitOnLastWindowClosed(true);
+        PortProxyForm portProxy;
+        portProxy.exec();
+        return 0;
+    }
+
     QApplication::setQuitOnLastWindowClosed(false);
     ensureLockScreenConfig();   // 首次启动时创建「无密码」的 ini 文件
 
@@ -95,13 +126,19 @@ int main(int argc, char *argv[])
         configForm.exec();
     });
 
-    // 「系统」子菜单：系统级工具都收在这里，目前只有系统路由管理
+    // 「系统」子菜单：系统级工具都收在这里
     QMenu *systemMenu = new QMenu("系统", &trayMenu);
     QAction *routeManagerAction = new QAction("路由管理", systemMenu);
     QObject::connect(routeManagerAction, &QAction::triggered, []() {
         openRouteManager();
     });
     systemMenu->addAction(routeManagerAction);
+
+    QAction *portProxyAction = new QAction("端口转发", systemMenu);
+    QObject::connect(portProxyAction, &QAction::triggered, []() {
+        openPortProxyManager();
+    });
+    systemMenu->addAction(portProxyAction);
 
     // 「沙箱」一级菜单：紧跟在「系统」下方，内容来自 C:\Windows\Sandboxie.ini 的 RunCommand。
     // 构造后立刻解析一次，文件不存在或没有可启动项时菜单自己隐藏，这里不用再判断。

@@ -292,12 +292,14 @@ dir D:\Programs\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
 ├── LICENSE             GPLv3 许可证全文
 ├── README.md           用户文档（功能与使用）
 ├── BUILD.md            本文
-├── main.cpp            程序入口、托盘与菜单、锁屏 / 路由管理子进程分支
+├── main.cpp            程序入口、托盘与菜单、锁屏 / 路由管理 / 端口转发子进程分支
 ├── mainwindow.*        主窗口（预留，当前未显示）
 ├── configform.*        设置窗口（开机自启、锁屏常亮、锁屏密码）
 ├── lockscreen.*        神隐锁屏（全屏遮屏、盲打密码解锁）
 ├── routemanager.*      系统路由管理窗口（添加/删除路由 + 系统路由表弹窗）
 ├── routequery.*        读取 IPv4 路由表（IP Helper API + 长效路由注册表）
+├── portproxy.*         端口转发的 netsh 封装（读列表、增删、IP Helper 服务状态）
+├── portproxyform.*     端口转发窗口（规则列表 + 添加 / 更新 / 删除）
 ├── sandboxie.*         解析 Sandboxie.ini、路径映射、启动沙箱
 ├── sandboxmenu.*       托盘「沙箱」菜单（含「显示启动命令」窗口）
 ├── ipaddressedit.*     仿系统 IP 地址控件的四段输入框
@@ -331,6 +333,16 @@ dir D:\Programs\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
 | 结果校验 | `route print > %temp%\RoutePrint.txt` 再读文本 | `GetIpForwardTable2` 直接查路由表，不产生临时文件 |
 | 显示路由表 | 导出 `%temp%\RoutePrint.txt`，用 Notepad++ 打开 | 原生表格窗口，可刷新 |
 | 退出清理 | 关闭窗口时删除临时文件 | 没有临时文件 |
+
+### 端口转发的实现
+
+- 规则来自 `netsh interface portproxy show v4tov4`，不直接读注册表：`PortProxy\v4tov4\tcp` 下的值格式没有公开文档。
+- 解析按「一行 4 个字段、第 2/4 个是 1-65535 的整数」筛数据行，不依赖本地化的表头（「地址 端口 地址 端口」）。`0.0.0.0` 在部分 Windows 版本会显示成 `*`，而 `*` 与 `0.0.0.0` 在 netsh 里是两条不同的表项：表单统一按 `0.0.0.0` 显示，原始写法单独留在 `storedListenAddress` 里，删除时原样回填。
+- `netsh` 有 `set v4tov4`，但它只能改连接地址/端口（侦听地址 + 端口才是表项主键），并且存在「只写了配置、没让 IP Helper 重新绑定监听」的情况。所以「更新选中」一律按「删旧 + 加新」重建：
+  - 侦听端点没变 → 先删后加（同一个表项只能存在一条，中间有极短断流）；
+  - 侦听端点变了 → 先加新、再删旧，添加失败时旧规则仍然可用。
+- 每次 add / delete 后都重新拉一次列表确认结果，不只看 netsh 的退出码；失败时把 netsh 原始输出和完整命令行一起显示，方便手动重试。
+- 窗口底部显示 IP Helper 服务（`iphlpsvc`）状态，用 `OpenSCManager` / `QueryServiceStatus`（advapi32）查询。服务没跑时规则能建、但不会监听，属于最常见的「加了不生效」。
 
 ### 外部命令一律用绝对路径
 
