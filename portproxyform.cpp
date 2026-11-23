@@ -357,10 +357,26 @@ bool PortProxyForm::readForm(PortProxyEntry *entry)
         return false;
     }
 
-    // 地址和端口都相同 = 自己转给自己，只会把连接打成死循环
-    if (listenAddress == connectAddress && listenPort == connectPort) {
+    // 回环：转出去的连接又会命中自己的侦听，只会打成死循环
+    if (listenAddress.compare(connectAddress, Qt::CaseInsensitive) == 0 && listenPort == connectPort) {
         QMessageBox::warning(this, windowTitle(),
-                             QStringLiteral("侦听地址、端口与连接地址、端口完全相同，会形成回环，请检查。"));
+                             QStringLiteral("侦听地址、端口与连接地址、端口完全相同，连接会转回自己，请检查。"));
+        return false;
+    }
+
+    // 0.0.0.0 占的是本机所有 IP：同端口再转到本机任意地址（含 127.0.0.1）一样会连回自己
+    if (listenAddress == QLatin1String("0.0.0.0") && listenPort == connectPort
+        && isLocalIpv4Address(connectAddress)) {
+        QMessageBox::warning(
+            this, windowTitle(),
+            QStringLiteral("这条规则会形成回环：\n\n"
+                           "侦听地址 0.0.0.0 会占用本机所有 IP 的 %1 端口；"
+                           "规则又要把连接转到本机地址 %2 的同一个端口，"
+                           "转出去的连接会再次命中自己的侦听，形成死循环。\n\n"
+                           "请改掉其中一个端口；如果只想给某块网卡做转发，"
+                           "把侦听地址填成那块网卡的 IP（如 192.168.81.1）。")
+                .arg(int(listenPort))
+                .arg(connectAddress));
         return false;
     }
 

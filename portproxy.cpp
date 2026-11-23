@@ -7,7 +7,8 @@
 // 每次 add 都会走一遍完整的建表 + 绑定监听流程，行为确定、立即生效。
 
 // Windows 头必须先于 Qt 引入（和 routequery.cpp 一致）：带 NOMINMAX / WIN32_LEAN_AND_MEAN，
-// 免得 min/max 宏污染后面的 Qt 头。这里还要 winsvc.h 查 IP Helper 服务状态。
+// 免得 min/max 宏污染后面的 Qt 头。winsock2.h 又必须先于 windows.h（否则会拉进冲突的 winsock1 定义）；
+// winsvc.h 用于查 IP Helper 服务状态，iphlpapi.h 用于枚举本机 IPv4 地址。
 #ifdef _WIN32
 #  ifndef NOMINMAX
 #    define NOMINMAX
@@ -18,14 +19,18 @@
 #  ifndef _WIN32_WINNT
 #    define _WIN32_WINNT 0x0601
 #  endif
+#  include <winsock2.h>
+#  include <ws2tcpip.h>
 #  include <windows.h>
 #  include <winsvc.h>
+#  include <iphlpapi.h>
 #endif
 
 #include "portproxy.h"
 
 #include "elevation.h"
 
+#include <QByteArray>
 #include <QFileInfo>
 #include <QProcess>
 
@@ -37,22 +42,32 @@
 
 namespace {
 
-// 侦听地址排序用：把 IPv4 转成整数，非法值排在最前
-quint32 ipv4Key(const QString &ip)
+// 点分 IPv4 -> 32 位整数；格式不对返回 false
+bool ipv4ToValue(const QString &ip, quint32 *value)
 {
     const QStringList parts = ip.split(QLatin1Char('.'));
     if (parts.size() != 4)
-        return 0;
+        return false;
 
-    quint32 key = 0;
+    quint32 result = 0;
     for (const QString &part : parts) {
         bool ok = false;
-        const uint value = part.toUInt(&ok);
-        if (!ok || value > 255)
-            return 0;
-        key = (key << 8) | value;
+        const uint octet = part.toUInt(&ok);
+        if (!ok || octet > 255)
+            return false;
+        result = (result << 8) | octet;
     }
-    return key;
+
+    if (value)
+        *value = result;
+    return true;
+}
+
+// 侦听地址排序用：把 IPv4 转成整数，非法值排在最前
+quint32 ipv4Key(const QString &ip)
+{
+    quint32 value = 0;
+    return ipv4ToValue(ip, &value) ? value : 0;
 }
 
 } // namespace
@@ -228,6 +243,55 @@ IpHelperState ipHelperState()
     return status.dwCurrentState == SERVICE_RUNNING ? IpHelperState::Running : IpHelperState::Stopped;
 #else
     return IpHelperState::Unknown;
+#endif
+}
+
+bool isLocalIpv4Address(const QString &address)
+{
+#ifdef _WIN32
+    quint32 target = 0;
+    if (!ipv4ToValue(address, &target))
+        return false;
+
+    // 127.0.0.0/8 是回环段：GetAdaptersAddresses 不保证列出回环伪网卡，这里直接判掉
+    if ((target >> 24) == 127)
+        return true;
+
+    const ULONG flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER;
+    ULONG size = 16 * 1024;
+    QByteArray buffer(int(size), Qt::Uninitialized);
+    auto *adapters = reinterpret_cast<IP_ADAPTER_ADDRESSES *>(buffer.data());
+
+    ULONG result = GetAdaptersAddresses(AF_INET, flags, nullptr, adapters, &size);
+    if (result == ERROR_BUFFER_OVERFLOW) {
+        buffer.resize(int(size));
+        adapters = reinterpret_cast<IP_ADAPTER_ADDRESSES *>(buffer.data());
+        result = GetAdaptersAddresses(AF_INET, flags, nullptr, adapters, &size);
+    }
+    if (result != NO_ERROR)
+        return false;
+
+    for (IP_ADAPTER_ADDRESSES *adapter = adapters; adapter; adapter = adapter->Next) {
+        for (IP_ADAPTER_UNICAST_ADDRESS *unicast = adapter->FirstUnicastAddress; unicast;
+             unicast = unicast->Next) {
+            const sockaddr *sock = unicast->Address.lpSockaddr;
+            if (!sock || sock->sa_family != AF_INET)
+                continue;
+
+            // 不用 ntohl：那是 ws2_32 里的函数，按字节取就够，省一个链接依赖
+            const auto *ipv4 = reinterpret_cast<const sockaddr_in *>(sock);
+            const unsigned char *bytes = reinterpret_cast<const unsigned char *>(&ipv4->sin_addr);
+            const quint32 value = (quint32(bytes[0]) << 24) | (quint32(bytes[1]) << 16)
+                                  | (quint32(bytes[2]) << 8) | quint32(bytes[3]);
+            if (value == target)
+                return true;
+        }
+    }
+
+    return false;
+#else
+    Q_UNUSED(address)
+    return false;
 #endif
 }
 

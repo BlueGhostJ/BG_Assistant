@@ -57,6 +57,10 @@ enum class IpHelperState
 };
 IpHelperState ipHelperState();
 
+// 本机是否拥有该 IPv4 地址（GetAdaptersAddresses 查网卡，另含 127.0.0.0/8 回环段）。
+// 用来判断「侦听 0.0.0.0 再转回本机同一端口」这类必然自环的配置。
+bool isLocalIpv4Address(const QString &address);
+
 // 拼成「侦听地址:端口 → 连接地址:端口」，用于提示框和状态栏。
 QString portProxyText(const PortProxyEntry &entry);
 

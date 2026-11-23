@@ -342,6 +342,7 @@ dir D:\Programs\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
   - 侦听端点没变 → 先删后加（同一个表项只能存在一条，中间有极短断流）；
   - 侦听端点变了 → 先加新、再删旧，添加失败时旧规则仍然可用。
 - 每次 add / delete 后都重新拉一次列表确认结果，不只看 netsh 的退出码；失败时把 netsh 原始输出和完整命令行一起显示，方便手动重试。
+- 添加/修改前拦「自环」配置：侦听与连接完全相同，或者侦听 `0.0.0.0` 且同端口转到本机地址。后者用 `GetAdaptersAddresses`（`isLocalIpv4Address`，另含 127.0.0.0/8）判断目标是不是本机 IP——0.0.0.0 的监听覆盖所有网卡，转出去的连接会再次命中自己的监听，形成死循环。
 - 窗口底部显示 IP Helper 服务（`iphlpsvc`）状态，用 `OpenSCManager` / `QueryServiceStatus`（advapi32）查询。服务没跑时规则能建、但不会监听，属于最常见的「加了不生效」。
 
 ### 外部命令一律用绝对路径
