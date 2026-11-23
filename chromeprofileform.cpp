@@ -126,7 +126,7 @@ ChromeProfileForm::ChromeProfileForm(Mode mode, const QList<ChromeProfile> &othe
         QStringLiteral("给这个多开单独指定数据目录（目录已存在时会沿用里面的登录数据）"));
     ui->globalDataDirButton->setToolTip(
         QStringLiteral("把数据目录改回全局位置下的同名子目录；点「确定」后会问你是否迁移已有数据"));
-    ui->previewEdit->setPlaceholderText(QStringLiteral("填写名称后显示实际执行的命令行"));
+    ui->previewEdit->setPlaceholderText(QStringLiteral("填写名称后显示启动命令"));
 
     setProfile(ChromeProfile());
 }
@@ -283,7 +283,7 @@ void ChromeProfileForm::submit()
     }
     if (!QDir::isAbsolutePath(dataDir)) {
         QMessageBox::warning(this, windowTitle(),
-                             QStringLiteral("数据目录需要是绝对路径（例如 D:\\Chrome多开\\工作号）。"));
+                             QStringLiteral("数据目录要填完整路径（例如 D:\\Chrome多开\\工作号）。"));
         return;
     }
 
@@ -388,7 +388,7 @@ void ChromeProfileForm::updateDataDirState()
     }
     if (!QDir::isAbsolutePath(dir)) {
         ui->dataDirHintLabel->setText(
-            QStringLiteral("请填写绝对路径，例如 D:\\Chrome多开\\工作号。"));
+            QStringLiteral("请填写完整路径，例如 D:\\Chrome多开\\工作号。"));
         return;
     }
 

@@ -95,7 +95,7 @@ ChromeMultiOpenForm::ChromeMultiOpenForm(QWidget *parent)
     ui->closeButton->setAutoDefault(false);
 
     ui->commandEdit->setPlaceholderText(
-        QStringLiteral("在列表中选中一个多开，这里显示它实际执行的命令行。"));
+        QStringLiteral("在列表中选中一个多开即可查看。"));
 
     connect(ui->newButton, &QPushButton::clicked, this, &ChromeMultiOpenForm::newProfile);
     connect(ui->editButton, &QPushButton::clicked, this,

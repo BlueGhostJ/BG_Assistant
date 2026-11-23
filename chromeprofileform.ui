@@ -90,7 +90,7 @@
         <item>
          <widget class="QLineEdit" name="dataDirEdit">
           <property name="placeholderText">
-           <string>数据目录的绝对路径，可点「浏览…」选择</string>
+           <string>多开数据存放的位置，可点「浏览…」选择</string>
           </property>
          </widget>
         </item>
@@ -161,7 +161,7 @@
        <widget class="QComboBox" name="proxyModeCombo">
         <item>
          <property name="text">
-          <string>使用系统代理（不传参数）</string>
+          <string>使用系统代理（跟随系统设置）</string>
          </property>
         </item>
         <item>
@@ -193,7 +193,7 @@
       <item row="2" column="0" colspan="2">
        <widget class="QLabel" name="proxyHintLabel">
         <property name="text">
-         <string>支持 http:// https:// socks4:// socks5:// 形式；只在「指定代理服务器」时生效，选「使用系统代理」时完全不传代理参数。</string>
+         <string>支持 http:// https:// socks4:// socks5:// 形式；只在「指定代理服务器」时生效，选「使用系统代理」时跟随系统设置。</string>
         </property>
         <property name="wordWrap">
          <bool>true</bool>
@@ -206,7 +206,7 @@
    <item>
     <widget class="QGroupBox" name="launchGroupBox">
      <property name="title">
-      <string>启动选项（不勾选的项目不传对应参数）</string>
+      <string>启动选项（不勾选的项目不生效）</string>
      </property>
      <layout class="QGridLayout" name="launchLayout">
       <property name="horizontalSpacing">
