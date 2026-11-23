@@ -232,7 +232,7 @@
       <item row="1" column="0">
        <widget class="QCheckBox" name="appModeCheckBox">
         <property name="text">
-         <string>独立窗口模式运行</string>
+         <string>独立窗口模式</string>
         </property>
        </widget>
       </item>

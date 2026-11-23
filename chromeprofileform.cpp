@@ -329,7 +329,7 @@ void ChromeProfileForm::submit()
     }
     if (ui->appModeCheckBox->isChecked() && ui->appUrlEdit->text().trimmed().isEmpty()) {
         QMessageBox::warning(this, windowTitle(),
-                             QStringLiteral("勾选了「独立窗口模式运行」，请填写要打开的网址。"));
+                             QStringLiteral("勾选了「独立窗口模式」，请填写要打开的网址。"));
         ui->appUrlEdit->setFocus();
         return;
     }

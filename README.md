@@ -142,7 +142,7 @@ chrome多开\
 | --- | --- |
 | 代理方式：指定代理服务器 / 不使用代理 | `--proxy-server="..."` / `--no-proxy-server`；选「使用系统代理」则不传任何代理参数 |
 | 指定 User-Agent | `--user-agent="..."` |
-| 独立窗口模式运行 | `--app="https://..."`（不写协议时按 https 补全） |
+| 独立窗口模式 | `--app="https://..."`（不写协议时按 https 补全） |
 | 指定窗口大小 | `--window-size=宽,高` |
 | 指定窗口位置 | `--window-position=x,y` |
 | 启动最大化 / 强制全屏 / 演示（无边框全屏） | `--start-maximized` / `--start-fullscreen` / `--kiosk`，三者互斥 |
