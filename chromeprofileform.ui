@@ -171,7 +171,7 @@
         </item>
         <item>
          <property name="text">
-          <string>不使用代理（--no-proxy-server）</string>
+          <string>不使用代理</string>
          </property>
         </item>
        </widget>
@@ -232,7 +232,7 @@
       <item row="1" column="0">
        <widget class="QCheckBox" name="appModeCheckBox">
         <property name="text">
-         <string>独立窗口模式运行（--app）</string>
+         <string>独立窗口模式运行</string>
         </property>
        </widget>
       </item>
