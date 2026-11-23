@@ -433,9 +433,19 @@ void ChromeMultiOpenForm::applyDataRoot(const QString &newRoot)
         return;
     }
 
+    // 只有确实有多个开的目录会变时才值得问；全部已经在新位置下就只更新设置
+    bool anyChange = false;
+    for (const ChromeProfile &profile : m_profiles) {
+        if (!ChromeMultiOpen::samePath(ChromeMultiOpen::profileDataDir(profile),
+                                       QDir(root).filePath(profile.name))) {
+            anyChange = true;
+            break;
+        }
+    }
+
     // 已有多个开时问一句：是搬数据，还是只改「新建多开的默认位置」
     bool migrate = false;
-    if (!m_profiles.isEmpty()) {
+    if (anyChange) {
         const auto answer = QMessageBox::question(
             this, windowTitle(),
             QStringLiteral("已有 %1 个多开。\n\n是否把它们的数据一起迁到新位置？\n\n"
@@ -494,10 +504,12 @@ void ChromeMultiOpenForm::applyDataRoot(const QString &newRoot)
         setMessage(QStringLiteral("数据位置已改为：%1，共迁移 %2 个多开的数据。")
                        .arg(QDir::toNativeSeparators(root))
                        .arg(migratedCount));
-    } else {
+    } else if (anyChange) {
         setMessage(QStringLiteral("数据位置已改为：%1；已有的多开继续用各自原来的目录，"
                                   "新建的多开才会放到新位置。")
                        .arg(QDir::toNativeSeparators(root)));
+    } else {
+        setMessage(QStringLiteral("数据位置已改为：%1").arg(QDir::toNativeSeparators(root)));
     }
 }
 
