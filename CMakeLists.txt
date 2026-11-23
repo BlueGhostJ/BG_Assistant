@@ -35,6 +35,16 @@ set(PROJECT_SOURCES
         sandboxie.h
         sandboxmenu.cpp
         sandboxmenu.h
+        chromemultiopen.cpp
+        chromemultiopen.h
+        chromemenu.cpp
+        chromemenu.h
+        chromemultiopenform.cpp
+        chromemultiopenform.h
+        chromemultiopenform.ui
+        chromeprofileform.cpp
+        chromeprofileform.h
+        chromeprofileform.ui
         ipaddressedit.cpp
         ipaddressedit.h
         elevation.cpp

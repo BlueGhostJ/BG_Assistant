@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ChromeMultiOpenForm</class>
+ <widget class="QDialog" name="ChromeMultiOpenForm">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>900</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>820</width>
+    <height>520</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Chrome 多开管理</string>
+  </property>
+  <layout class="QVBoxLayout" name="mainLayout">
+   <property name="leftMargin">
+    <number>18</number>
+   </property>
+   <property name="topMargin">
+    <number>14</number>
+   </property>
+   <property name="rightMargin">
+    <number>18</number>
+   </property>
+   <property name="bottomMargin">
+    <number>16</number>
+   </property>
+   <property name="spacing">
+    <number>10</number>
+   </property>
+   <item>
+    <widget class="QLabel" name="hintLabel">
+     <property name="text">
+      <string>每个多开使用独立的数据目录和缓存目录，可以同时登录多个账号。启动时直接拉起 chrome.exe，不需要管理员权限。</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="toolbarLayout">
+     <property name="spacing">
+      <number>8</number>
+     </property>
+     <item>
+      <widget class="QPushButton" name="newButton">
+       <property name="minimumSize">
+        <size>
+         <width>84</width>
+         <height>28</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>新建</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="editButton">
+       <property name="minimumSize">
+        <size>
+         <width>84</width>
+         <height>28</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>编辑</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="duplicateButton">
+       <property name="minimumSize">
+        <size>
+         <width>84</width>
+         <height>28</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>复制</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="deleteButton">
+       <property name="minimumSize">
+        <size>
+         <width>84</width>
+         <height>28</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>删除</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="toolbarSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="launchButton">
+       <property name="minimumSize">
+        <size>
+         <width>96</width>
+         <height>28</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>启动选中</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QTableWidget" name="profileTable">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>200</height>
+      </size>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="commandLayout">
+     <property name="spacing">
+      <number>8</number>
+     </property>
+     <item>
+      <widget class="QLabel" name="commandTitleLabel">
+       <property name="text">
+        <string>启动命令</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="commandEdit">
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="copyCommandButton">
+       <property name="minimumSize">
+        <size>
+         <width>64</width>
+         <height>26</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>复制</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="dataGroupBox">
+     <property name="title">
+      <string>数据位置</string>
+     </property>
+     <layout class="QGridLayout" name="dataLayout">
+      <property name="horizontalSpacing">
+       <number>8</number>
+      </property>
+      <property name="verticalSpacing">
+       <number>8</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="dataRootTitleLabel">
+        <property name="text">
+         <string>多开数据目录</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="dataRootEdit">
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QPushButton" name="changeRootButton">
+        <property name="minimumSize">
+         <size>
+          <width>72</width>
+          <height>26</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>修改…</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="3">
+       <widget class="QPushButton" name="defaultRootButton">
+        <property name="minimumSize">
+         <size>
+          <width>88</width>
+          <height>26</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>恢复默认</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="4">
+       <widget class="QPushButton" name="openRootButton">
+        <property name="minimumSize">
+         <size>
+          <width>64</width>
+          <height>26</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>打开</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0" colspan="5">
+       <widget class="QLabel" name="dataHintLabel">
+        <property name="text">
+         <string>每个多开的数据按名称存放在该目录下的同名子目录里。默认位置是 exe 同目录的 chrome多开 文件夹；指向已有的多开目录后，同名子目录会被直接沿用（以前 bat 脚本留下的数据也能接着用）。</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="bottomLayout">
+     <property name="spacing">
+      <number>8</number>
+     </property>
+     <item>
+      <widget class="QLabel" name="messageLabel">
+       <property name="text">
+        <string/>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="bottomSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="closeButton">
+       <property name="minimumSize">
+        <size>
+         <width>90</width>
+         <height>28</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>关闭</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

@@ -1,0 +1,562 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ChromeProfileForm</class>
+ <widget class="QDialog" name="ChromeProfileForm">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>680</width>
+    <height>664</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>620</width>
+    <height>600</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Chrome 多开</string>
+  </property>
+  <layout class="QVBoxLayout" name="mainLayout">
+   <property name="leftMargin">
+    <number>18</number>
+   </property>
+   <property name="topMargin">
+    <number>14</number>
+   </property>
+   <property name="rightMargin">
+    <number>18</number>
+   </property>
+   <property name="bottomMargin">
+    <number>16</number>
+   </property>
+   <property name="spacing">
+    <number>10</number>
+   </property>
+   <item>
+    <widget class="QLabel" name="hintLabel">
+     <property name="text">
+      <string>每个多开使用独立的数据目录，可以同时登录不同账号；浏览器缓存放在系统临时目录。</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="basicGroupBox">
+     <property name="title">
+      <string>基本信息</string>
+     </property>
+     <layout class="QGridLayout" name="basicLayout">
+      <property name="horizontalSpacing">
+       <number>12</number>
+      </property>
+      <property name="verticalSpacing">
+       <number>8</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="nameLabel">
+        <property name="text">
+         <string>名称 *</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="nameEdit">
+        <property name="placeholderText">
+         <string>例如：工作号、游戏号-张三</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0" colspan="2">
+       <widget class="QLabel" name="nameHintLabel">
+        <property name="text">
+         <string>名称用于区分不同的多开用户或多开账号，同时作为数据子目录名；改名不会移动已有数据。</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="dataDirTitleLabel">
+        <property name="text">
+         <string>数据目录</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLabel" name="dataDirLabel">
+        <property name="text">
+         <string/>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+        <property name="textInteractionFlags">
+         <set>Qt::TextSelectableByMouse</set>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="networkGroupBox">
+     <property name="title">
+      <string>网络代理</string>
+     </property>
+     <layout class="QGridLayout" name="networkLayout">
+      <property name="horizontalSpacing">
+       <number>12</number>
+      </property>
+      <property name="verticalSpacing">
+       <number>8</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="proxyModeLabel">
+        <property name="text">
+         <string>代理方式</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="proxyModeCombo">
+        <item>
+         <property name="text">
+          <string>使用系统代理（不传参数）</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>指定代理服务器</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>不使用代理（--no-proxy-server）</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="proxyServerLabel">
+        <property name="text">
+         <string>代理服务器</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="proxyServerEdit">
+        <property name="placeholderText">
+         <string>socks5://127.0.0.1:1080</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0" colspan="2">
+       <widget class="QLabel" name="proxyHintLabel">
+        <property name="text">
+         <string>支持 http:// https:// socks4:// socks5:// 形式；只在「指定代理服务器」时生效，选「使用系统代理」时完全不传代理参数。</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="launchGroupBox">
+     <property name="title">
+      <string>启动选项（不勾选的项目不传对应参数）</string>
+     </property>
+     <layout class="QGridLayout" name="launchLayout">
+      <property name="horizontalSpacing">
+       <number>12</number>
+      </property>
+      <property name="verticalSpacing">
+       <number>8</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="userAgentCheckBox">
+        <property name="text">
+         <string>指定 User-Agent</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="userAgentEdit">
+        <property name="placeholderText">
+         <string>Mozilla/5.0 (...) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/...</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="appModeCheckBox">
+        <property name="text">
+         <string>独立窗口模式运行（--app）</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="appUrlEdit">
+        <property name="placeholderText">
+         <string>https://example.com/（不写协议时按 https 补全）</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QCheckBox" name="windowSizeCheckBox">
+        <property name="text">
+         <string>指定窗口大小</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <layout class="QHBoxLayout" name="windowSizeLayout">
+        <property name="spacing">
+         <number>6</number>
+        </property>
+        <item>
+         <widget class="QSpinBox" name="windowWidthSpin">
+          <property name="minimumSize">
+           <size>
+            <width>96</width>
+            <height>24</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>96</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="minimum">
+           <number>100</number>
+          </property>
+          <property name="maximum">
+           <number>20000</number>
+          </property>
+          <property name="singleStep">
+           <number>10</number>
+          </property>
+          <property name="value">
+           <number>1280</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="windowSizeXLabel">
+          <property name="text">
+           <string>×</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSpinBox" name="windowHeightSpin">
+          <property name="minimumSize">
+           <size>
+            <width>96</width>
+            <height>24</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>96</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="minimum">
+           <number>100</number>
+          </property>
+          <property name="maximum">
+           <number>20000</number>
+          </property>
+          <property name="singleStep">
+           <number>10</number>
+          </property>
+          <property name="value">
+           <number>720</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="windowSizeHintLabel">
+          <property name="text">
+           <string>宽 × 高（像素）</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="windowSizeSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item row="3" column="0">
+       <widget class="QCheckBox" name="windowPositionCheckBox">
+        <property name="text">
+         <string>指定窗口位置</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <layout class="QHBoxLayout" name="windowPositionLayout">
+        <property name="spacing">
+         <number>6</number>
+        </property>
+        <item>
+         <widget class="QSpinBox" name="windowXSpin">
+          <property name="minimumSize">
+           <size>
+            <width>96</width>
+            <height>24</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>96</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="minimum">
+           <number>-20000</number>
+          </property>
+          <property name="maximum">
+           <number>20000</number>
+          </property>
+          <property name="singleStep">
+           <number>10</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="windowPositionXLabel">
+          <property name="text">
+           <string>,</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSpinBox" name="windowYSpin">
+          <property name="minimumSize">
+           <size>
+            <width>96</width>
+            <height>24</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>96</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="minimum">
+           <number>-20000</number>
+          </property>
+          <property name="maximum">
+           <number>20000</number>
+          </property>
+          <property name="singleStep">
+           <number>10</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="windowPositionHintLabel">
+          <property name="text">
+           <string>左边距 , 上边距（像素）</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="windowPositionSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item row="4" column="0">
+       <widget class="QCheckBox" name="windowNameCheckBox">
+        <property name="text">
+         <string>指定窗口名称（仅首次生效）</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QLineEdit" name="windowNameEdit">
+        <property name="placeholderText">
+         <string>例如：业务协同-张程君</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0" colspan="2">
+       <layout class="QHBoxLayout" name="displayModeLayout">
+        <property name="spacing">
+         <number>16</number>
+        </property>
+        <item>
+         <widget class="QCheckBox" name="maximizedCheckBox">
+          <property name="text">
+           <string>启动最大化</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="fullscreenCheckBox">
+          <property name="text">
+           <string>强制全屏</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="kioskCheckBox">
+          <property name="text">
+           <string>演示（无边框全屏）</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="scale150CheckBox">
+          <property name="text">
+           <string>强制缩放 150%</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="displayModeSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item row="6" column="0" colspan="2">
+       <widget class="QLabel" name="displayModeHintLabel">
+        <property name="text">
+         <string>最大化 / 强制全屏 / 演示三者互斥（勾一个会自动取消另外两个），Chrome 只认其中一个。</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="previewLayout">
+     <property name="spacing">
+      <number>8</number>
+     </property>
+     <item>
+      <widget class="QLabel" name="previewTitleLabel">
+       <property name="text">
+        <string>启动命令</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="previewEdit">
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>10</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="buttonLayout">
+     <property name="spacing">
+      <number>8</number>
+     </property>
+     <item>
+      <spacer name="buttonSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="cancelButton">
+       <property name="minimumSize">
+        <size>
+         <width>88</width>
+         <height>28</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>取消</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="okButton">
+       <property name="minimumSize">
+        <size>
+         <width>88</width>
+         <height>28</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>确定</string>
+       </property>
+       <property name="default">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

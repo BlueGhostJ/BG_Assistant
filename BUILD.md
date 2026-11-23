@@ -292,7 +292,7 @@ dir D:\Programs\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
 ├── LICENSE             GPLv3 许可证全文
 ├── README.md           用户文档（功能与使用）
 ├── BUILD.md            本文
-├── main.cpp            程序入口、托盘与菜单、锁屏 / 路由管理 / 端口转发子进程分支
+├── main.cpp            程序入口、托盘与菜单、锁屏 / 路由 / 端口转发 / Chrome 多开子进程分支
 ├── mainwindow.*        主窗口（预留，当前未显示）
 ├── configform.*        设置窗口（开机自启、锁屏常亮、锁屏密码）
 ├── lockscreen.*        神隐锁屏（全屏遮屏、盲打密码解锁）
@@ -302,6 +302,10 @@ dir D:\Programs\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
 ├── portproxyform.*     端口转发窗口（规则列表 + 添加 / 更新 / 删除）
 ├── sandboxie.*         解析 Sandboxie.ini、路径映射、启动沙箱
 ├── sandboxmenu.*       托盘「沙箱」菜单（含「显示启动命令」窗口）
+├── chromemultiopen.*   Chrome 多开的配置（ini）、数据/缓存目录、参数拼装与启动
+├── chromemenu.*        托盘「系统 › Chrome多开」菜单
+├── chromemultiopenform.* 多开管理窗口（列表、启动、数据位置、命令预览）
+├── chromeprofileform.* 单个多开的新建 / 编辑对话框
 ├── ipaddressedit.*     仿系统 IP 地址控件的四段输入框
 ├── elevation.*         管理员提权（ShellExecuteEx runas）+ 系统程序绝对路径
 ├── aes.*               AES-ECB 加密（纯 C++ 实现，无外部依赖）
@@ -344,6 +348,20 @@ dir D:\Programs\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
 - 每次 add / delete 后都重新拉一次列表确认结果，不只看 netsh 的退出码；失败时把 netsh 原始输出和完整命令行一起显示，方便手动重试。
 - 添加/修改前拦「自环」配置：侦听与连接完全相同，或者侦听 `0.0.0.0` 且同端口转到本机地址。后者用 `GetAdaptersAddresses`（`isLocalIpv4Address`，另含 127.0.0.0/8）判断目标是不是本机 IP——0.0.0.0 的监听覆盖所有网卡，转出去的连接会再次命中自己的监听，形成死循环。
 - 窗口底部显示 IP Helper 服务（`iphlpsvc`）状态，用 `OpenSCManager` / `QueryServiceStatus`（advapi32）查询。服务没跑时规则能建、但不会监听，属于最常见的「加了不生效」。
+
+### Chrome 多开的启动方式
+
+多开不需要管理员权限，所以只借用了「新进程 + 参数」这套做法，不走 `runas`：
+
+1. 托盘菜单里的「多开管理…」用 `QProcess::startDetached` 重启自身，参数 `ChromeMultiOpen`。
+2. 新进程识别到该参数后只显示管理窗口、不创建托盘图标，关闭窗口即退出。
+3. 点某个多开（或窗口里的「启动选中」）时直接用 `QProcess::startDetached` 拉起 `chrome.exe`。
+
+数据目录由「数据根目录 + 名称」推导，不单独存档：改数据位置后所有多开都指向新位置，同名子目录直接沿用。
+命令行按 `--user-data-dir=<根>/<名称> --disk-cache-dir=%TEMP%/<名称>` 起头，再按勾选项追加代理 / UA / `--app` / 窗口 / 显示模式等参数。
+参数值本身不加引号（交给 `QProcess` 做进程级转义），只有界面上展示的命令行才补引号。
+
+浏览器探测顺序：`%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe`，再是 `%ProgramFiles%` / `%ProgramFiles(x86)%` / `%ProgramW6432%` 下的同名路径；都没找到时「Chrome多开」菜单整体隐藏。
 
 ### 外部命令一律用绝对路径
 

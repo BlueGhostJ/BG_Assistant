@@ -8,6 +8,8 @@
 #include <QProcess>
 #include <QTimer>
 #include <QMessageBox>
+#include "chromemenu.h"
+#include "chromemultiopenform.h"
 #include "configform.h"
 #include "elevation.h"
 #include "lockscreen.h"
@@ -114,6 +116,15 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    // Chrome 多开管理子进程：不需要管理员权限，只显示管理窗口、不建托盘。
+    // 多开本身是普通用户权限就能做的事，所以这里不走 runas。
+    if (app.arguments().contains(QStringLiteral("ChromeMultiOpen"))) {
+        QApplication::setQuitOnLastWindowClosed(true);
+        ChromeMultiOpenForm chromeMultiOpen;
+        chromeMultiOpen.exec();
+        return 0;
+    }
+
     QApplication::setQuitOnLastWindowClosed(false);
     ensureLockScreenConfig();   // 首次启动时创建「无密码」的 ini 文件
 
@@ -128,6 +139,15 @@ int main(int argc, char *argv[])
 
     // 「系统」子菜单：系统级工具都收在这里
     QMenu *systemMenu = new QMenu("系统", &trayMenu);
+
+    // Chrome 多开排第一位：它是日常最常用的启动入口。
+    // 菜单内容跟着 BGAssistant.ini 走，每次弹出托盘菜单前重新读一遍；
+    // 本机没有 chrome.exe 时菜单自己隐藏（连这一项都不出现）。
+    ChromeMenu *chromeMenu = new ChromeMenu(&trayMenu);
+    chromeMenu->refresh();
+    QObject::connect(&trayMenu, &QMenu::aboutToShow, chromeMenu, &ChromeMenu::refresh);
+    systemMenu->addMenu(chromeMenu);
+
     QAction *routeManagerAction = new QAction("路由管理", systemMenu);
     QObject::connect(routeManagerAction, &QAction::triggered, []() {
         openRouteManager();
