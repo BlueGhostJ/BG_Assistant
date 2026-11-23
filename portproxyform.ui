@@ -46,16 +46,6 @@
     </widget>
    </item>
    <item>
-    <widget class="QLabel" name="hintLine2Label">
-     <property name="text">
-      <string>netsh 的 set 只能改连接地址/端口，还有不重新绑定监听的情况，所以「更新选中」一律按「删旧 + 加新」重建规则。</string>
-     </property>
-     <property name="wordWrap">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item>
     <layout class="QHBoxLayout" name="listHeaderLayout">
      <property name="spacing">
       <number>8</number>
