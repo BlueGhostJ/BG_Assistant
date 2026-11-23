@@ -24,6 +24,10 @@ public:
     explicit ChromeMultiOpenForm(QWidget *parent = nullptr);
     ~ChromeMultiOpenForm() override;
 
+protected:
+    // 表格拖动排序：拖放本身只用来发起拖动，落点由这里自己算（见 .cpp 里的说明）
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
 private:
     Ui::ChromeMultiOpenForm *ui;
 
@@ -41,6 +45,8 @@ private:
     void duplicateSelected();
     void deleteSelected();
     void launchSelected();
+
+    void moveProfile(int from, int to);   // 调整顺序并写回配置（托盘菜单同步）
 
     void changeDataRoot();
     void resetDataRoot();

@@ -372,6 +372,11 @@ dir D:\Programs\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
 
 浏览器探测顺序：`%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe`，再是 `%ProgramFiles%` / `%ProgramFiles(x86)%` / `%ProgramW6432%` 下的同名路径；都没找到时「Chrome多开」菜单整体隐藏。
 
+列表顺序就是 ini 里的数组顺序，也是托盘菜单的顺序。表格开 `InternalMove` 只是为了能拖起来、
+能看到落点提示；`QDropEvent` 被 `eventFilter` 截获后自己算目标行，下一轮事件循环再 `QList::move` + 重新保存。
+视图在拖放收尾时会按当前选中行删一次模型行（`clearOrRemove`），所以落点确认后先 `clearSelection()` 让它删不到东西，
+再靠重建表格恢复选中——这样既不会出现「落点复制一份、源行留空」，也不会误删数据。
+
 ### 外部命令一律用绝对路径
 
 `CreateProcess` 解析相对名时按「应用程序自身目录 → 当前目录 → System32 → Windows 目录 → PATH」搜索，

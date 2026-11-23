@@ -17,6 +17,8 @@
 #include <QTableWidgetItem>
 #include <QUrl>
 #include <QDesktopServices>
+#include <QDropEvent>
+#include <QTimer>
 
 namespace {
 
@@ -43,7 +45,8 @@ ChromeMultiOpenForm::ChromeMultiOpenForm(QWidget *parent)
     setAttribute(Qt::WA_QuitOnClose, false);
 
     // 列表只读、整行选中；前三列固定宽度，数据目录列吃掉剩余宽度（有自定义目录后必须能看见）
-    ui->profileTable->setColumnCount(ColumnCount);    ui->profileTable->setHorizontalHeaderLabels({QStringLiteral("名称"),
+    ui->profileTable->setColumnCount(ColumnCount);
+    ui->profileTable->setHorizontalHeaderLabels({QStringLiteral("名称"),
                                                  QStringLiteral("代理"),
                                                  QStringLiteral("启动选项"),
                                                  QStringLiteral("数据目录")});
@@ -59,6 +62,17 @@ ChromeMultiOpenForm::ChromeMultiOpenForm(QWidget *parent)
     ui->profileTable->horizontalHeader()->setSectionResizeMode(ColumnProxy, QHeaderView::Interactive);
     ui->profileTable->horizontalHeader()->setSectionResizeMode(ColumnOptions, QHeaderView::Interactive);
     ui->profileTable->horizontalHeader()->setSectionResizeMode(ColumnDataDir, QHeaderView::Stretch);
+    // 拖动行调整顺序：InternalMove 只负责让拖动/落点提示成立，
+    // 真正的重排交给 eventFilter（QTableWidget 自带的内部移动会在落点复制一份、源行留空）
+    ui->profileTable->setDragEnabled(true);
+    ui->profileTable->setAcceptDrops(true);
+    ui->profileTable->viewport()->setAcceptDrops(true);
+    ui->profileTable->setDropIndicatorShown(true);
+    ui->profileTable->setDragDropMode(QAbstractItemView::InternalMove);
+    ui->profileTable->setDefaultDropAction(Qt::MoveAction);
+    ui->profileTable->setDragDropOverwriteMode(false);
+    ui->profileTable->viewport()->installEventFilter(this);
+
     ui->profileTable->setColumnWidth(ColumnName, 180);
     ui->profileTable->setColumnWidth(ColumnProxy, 170);
     ui->profileTable->setColumnWidth(ColumnOptions, 200);
@@ -71,6 +85,8 @@ ChromeMultiOpenForm::ChromeMultiOpenForm(QWidget *parent)
     ui->editButton->setAutoDefault(false);
     ui->duplicateButton->setAutoDefault(false);
     ui->deleteButton->setAutoDefault(false);
+    ui->upButton->setAutoDefault(false);
+    ui->downButton->setAutoDefault(false);
     ui->launchButton->setAutoDefault(false);
     ui->copyCommandButton->setAutoDefault(false);
     ui->changeRootButton->setAutoDefault(false);
@@ -85,6 +101,14 @@ ChromeMultiOpenForm::ChromeMultiOpenForm(QWidget *parent)
     connect(ui->editButton, &QPushButton::clicked, this,
             [this]() { editProfile(selectedRow()); });
     connect(ui->duplicateButton, &QPushButton::clicked, this, &ChromeMultiOpenForm::duplicateSelected);
+    connect(ui->upButton, &QPushButton::clicked, this, [this]() {
+        const int row = selectedRow();
+        moveProfile(row, row - 1);
+    });
+    connect(ui->downButton, &QPushButton::clicked, this, [this]() {
+        const int row = selectedRow();
+        moveProfile(row, row + 1);
+    });
     connect(ui->deleteButton, &QPushButton::clicked, this, &ChromeMultiOpenForm::deleteSelected);
     connect(ui->launchButton, &QPushButton::clicked, this, &ChromeMultiOpenForm::launchSelected);
     connect(ui->closeButton, &QPushButton::clicked, this, &QDialog::accept);
@@ -178,11 +202,15 @@ void ChromeMultiOpenForm::reload(const QString &selectName)
 
 void ChromeMultiOpenForm::updateButtons()
 {
-    const bool hasSelection = selectedRow() >= 0;
+    const int row = selectedRow();
+    const bool hasSelection = row >= 0;
+
     ui->editButton->setEnabled(hasSelection);
     ui->duplicateButton->setEnabled(hasSelection);
     ui->deleteButton->setEnabled(hasSelection);
     ui->launchButton->setEnabled(hasSelection);
+    ui->upButton->setEnabled(hasSelection && row > 0);
+    ui->downButton->setEnabled(hasSelection && row + 1 < m_profiles.size());
     ui->copyCommandButton->setEnabled(!ui->commandEdit->text().isEmpty());
 }
 
@@ -399,6 +427,65 @@ void ChromeMultiOpenForm::launchSelected()
     }
 
     setMessage(QStringLiteral("已启动多开「%1」。").arg(profile.name));
+}
+
+void ChromeMultiOpenForm::moveProfile(int from, int to)
+{
+    if (from < 0 || from >= m_profiles.size())
+        return;
+    if (to < 0)
+        to = 0;
+    if (to >= m_profiles.size())
+        to = int(m_profiles.size()) - 1;
+    if (from == to)
+        return;
+
+    const QString moving = m_profiles.at(from).name;
+
+    QList<ChromeProfile> profiles = m_profiles;
+    profiles.move(from, to);
+    if (!storeProfiles(profiles))
+        return;
+
+    reload(moving);
+    setMessage(QStringLiteral("已把「%1」调到第 %2 位，托盘菜单顺序同步更新。")
+                   .arg(moving)
+                   .arg(to + 1));
+}
+
+bool ChromeMultiOpenForm::eventFilter(QObject *watched, QEvent *event)
+{
+    // 表格拖放：把 QDropEvent 拦下来自己算「从第几行挪到第几行」。
+    // 直接用 QTableWidget 的内部移动，落点会插入副本、源行留空，还要事后清理。
+    if (watched == ui->profileTable->viewport() && event->type() == QEvent::Drop) {
+        auto *dropEvent = static_cast<QDropEvent *>(event);
+
+        const int from = selectedRow();
+        const QPoint pos = dropEvent->position().toPoint();
+        int to = ui->profileTable->rowAt(pos.y());
+
+        // 落在最后一行下面（表格空白处）就当成放到末尾
+        if (to < 0)
+            to = pos.y() > 0 ? int(m_profiles.size()) - 1 : 0;
+
+        dropEvent->accept();
+
+        if (from < 0 || to < 0 || from == to) {
+            // 没有实际移动：忽略这次落点（拖回原位时也能看到「不可放置」的提示）
+            dropEvent->setDropAction(Qt::IgnoreAction);
+            return true;
+        }
+
+        // 接受成 MoveAction，拖动光标才是正常的「移动」样式；
+        // 视图在拖放收尾时会按当前选中行删一次模型行（InternalMove 的固定动作），
+        // 先清掉选中让它什么也删不到，真正的重排在下一轮事件循环里做。
+        dropEvent->setDropAction(Qt::MoveAction);
+        ui->profileTable->clearSelection();
+        QTimer::singleShot(0, this, [this, from, to]() { moveProfile(from, to); });
+        return true;
+    }
+
+    return QDialog::eventFilter(watched, event);
 }
 
 void ChromeMultiOpenForm::changeDataRoot()
