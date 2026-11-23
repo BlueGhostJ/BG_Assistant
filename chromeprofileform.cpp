@@ -55,19 +55,15 @@ ChromeProfileForm::ChromeProfileForm(Mode mode, const QList<ChromeProfile> &othe
     connect(ui->okButton, &QPushButton::clicked, this, &ChromeProfileForm::submit);
     connect(ui->cancelButton, &QPushButton::clicked, this, &QDialog::reject);
 
-    // 勾选框统一驱动「对应输入框是否可用」+ 命令预览
+    // 勾选框统一驱动「对应输入框是否可用」
     const QList<QCheckBox *> optionChecks{
         ui->userAgentCheckBox, ui->appModeCheckBox,    ui->windowSizeCheckBox,
         ui->windowPositionCheckBox, ui->windowNameCheckBox, ui->maximizedCheckBox,
         ui->fullscreenCheckBox, ui->kioskCheckBox,     ui->scale150CheckBox,
         ui->noImagesCheckBox,
     };
-    for (QCheckBox *check : optionChecks) {
-        connect(check, &QCheckBox::toggled, this, [this]() {
-            updateEnabledStates();
-            updatePreview();
-        });
-    }
+    for (QCheckBox *check : optionChecks)
+        connect(check, &QCheckBox::toggled, this, [this]() { updateEnabledStates(); });
 
     // 最大化 / 强制全屏 / 演示在 Chrome 里互相覆盖，勾一个就取消另外两个
     connect(ui->maximizedCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
@@ -89,34 +85,19 @@ ChromeProfileForm::ChromeProfileForm(Mode mode, const QList<ChromeProfile> &othe
         ui->fullscreenCheckBox->setChecked(false);
     });
 
-    connect(ui->nameEdit, &QLineEdit::textChanged, this, [this]() {
-        updateDataDirState();
-        updatePreview();
-    });
-    connect(ui->proxyServerEdit, &QLineEdit::textChanged, this, [this]() { updatePreview(); });
-    connect(ui->userAgentEdit, &QLineEdit::textChanged, this, [this]() { updatePreview(); });
-    connect(ui->appUrlEdit, &QLineEdit::textChanged, this, [this]() { updatePreview(); });
-    connect(ui->windowNameEdit, &QLineEdit::textChanged, this, [this]() { updatePreview(); });
+    connect(ui->nameEdit, &QLineEdit::textChanged, this, [this]() { updateDataDirState(); });
 
     connect(ui->proxyModeCombo, &QComboBox::currentIndexChanged, this, [this]() {
         // 没选「指定代理服务器」时把地址清空并置灰：避免界面上留着一条用不到的旧值
         if (ui->proxyModeCombo->currentIndex() != ChromeProfile::ProxyCustom)
             ui->proxyServerEdit->clear();
         updateEnabledStates();
-        updatePreview();
     });
-
-    const QList<QSpinBox *> spins{ui->windowWidthSpin, ui->windowHeightSpin,
-                                  ui->windowXSpin, ui->windowYSpin};
-    for (QSpinBox *spin : spins) {
-        connect(spin, &QSpinBox::valueChanged, this, [this]() { updatePreview(); });
-    }
 
     // 手动改过目录就不再跟着名称走（textEdited 只响应用户输入，不会被 setText 触发）
     connect(ui->dataDirEdit, &QLineEdit::textEdited, this, [this]() {
         m_dataDirEdited = true;
         updateDataDirState();
-        updatePreview();
     });
 
     connect(ui->browseDataDirButton, &QPushButton::clicked, this, &ChromeProfileForm::browseDataDir);
@@ -126,7 +107,6 @@ ChromeProfileForm::ChromeProfileForm(Mode mode, const QList<ChromeProfile> &othe
         QStringLiteral("给这个多开单独指定数据目录（目录已存在时会沿用里面的登录数据）"));
     ui->globalDataDirButton->setToolTip(
         QStringLiteral("把数据目录改回全局位置下的同名子目录；点「确定」后会问你是否迁移已有数据"));
-    ui->previewEdit->setPlaceholderText(QStringLiteral("填写名称后显示启动命令"));
 
     setProfile(ChromeProfile());
 }
@@ -191,7 +171,6 @@ void ChromeProfileForm::setProfile(const ChromeProfile &profile)
 
     updateEnabledStates();
     updateDataDirState();
-    updatePreview();
 }
 
 ChromeProfile ChromeProfileForm::profile() const
@@ -415,7 +394,6 @@ void ChromeProfileForm::browseDataDir()
     ui->dataDirEdit->setCursorPosition(0);
     m_dataDirEdited = true;
     updateDataDirState();
-    updatePreview();
 }
 
 void ChromeProfileForm::useGlobalDataDir()
@@ -423,19 +401,4 @@ void ChromeProfileForm::useGlobalDataDir()
     // 一键改回全局目录（<全局数据位置>\<名称>）；真正的搬迁在点「确定」后询问
     m_dataDirEdited = false;
     updateDataDirState();
-    updatePreview();
-}
-
-void ChromeProfileForm::updatePreview()
-{
-    const ChromeProfile current = profile();
-
-    // 还没填名称时没有确定的数据目录，先显示占位提示，别展示一条错误的命令行
-    if (current.dataDir.isEmpty()) {
-        ui->previewEdit->clear();
-        return;
-    }
-
-    ui->previewEdit->setText(ChromeMultiOpen::commandLine(current));
-    ui->previewEdit->setCursorPosition(0);
 }

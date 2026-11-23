@@ -40,34 +40,6 @@ QString stripped(QString text)
     return text;
 }
 
-bool needsQuote(const QString &value)
-{
-    return value.isEmpty() || value.contains(QLatin1Char(' '))
-           || value.contains(QLatin1Char('\t')) || value.contains(QLatin1Char('"'));
-}
-
-// 命令行展示用：值里有空格就加引号，和 bat 里的写法一致，方便直接复制出去试。
-// force = true 时无论有没有空格都加引号（URL 里的 & 复制到 cmd 里不加引号会截断）。
-QString quoteForDisplay(const QString &value, bool force = false)
-{
-    if (!force && !needsQuote(value))
-        return value;
-    QString escaped = value;
-    escaped.replace(QLatin1Char('"'), QStringLiteral("\\\""));
-    return QStringLiteral("\"") + escaped + QStringLiteral("\"");
-}
-
-// bat 模板里固定带引号的那几个参数
-bool isQuotedSwitch(const QString &flag)
-{
-    static const QStringList flags{
-        QStringLiteral("--user-data-dir="), QStringLiteral("--disk-cache-dir="),
-        QStringLiteral("--proxy-server="),  QStringLiteral("--user-agent="),
-        QStringLiteral("--app="),           QStringLiteral("--window-name="),
-    };
-    return flags.contains(flag);
-}
-
 // 归一化后忽略大小写比较：Windows 路径不区分大小写
 bool isSamePath(const QString &a, const QString &b)
 {
@@ -444,38 +416,6 @@ QStringList ChromeMultiOpen::buildArguments(const ChromeProfile &profile)
         arguments << QStringLiteral("--window-name=") + windowName;
 
     return arguments;
-}
-
-QString ChromeMultiOpen::commandLine(const ChromeProfile &profile)
-{
-    QString exe = chromePath();
-    if (exe.isEmpty())
-        exe = QStringLiteral("chrome.exe");
-
-    QStringList parts;
-    parts << quoteForDisplay(QDir::toNativeSeparators(exe), true);
-
-    for (const QString &argument : buildArguments(profile)) {
-        const int equals = argument.indexOf(QLatin1Char('='));
-        if (equals <= 0) {
-            parts << argument;
-            continue;
-        }
-
-        const QString flag = argument.left(equals + 1);
-        const QString value = argument.mid(equals + 1);
-
-        // 展示时按 bat 模板的写法补引号：路径 / URL / UA / 窗口名一律带引号，
-        // 这样复制到 cmd 里也不会被 URL 中的 & 截断。
-        // 注意引号只出现在展示文本里，真正传给 chrome.exe 的参数列表不带引号
-        // （QProcess 会在需要时做进程级转义），两种写法 Chrome 都认。
-        if (isQuotedSwitch(flag) || needsQuote(value))
-            parts << flag + quoteForDisplay(value, isQuotedSwitch(flag));
-        else
-            parts << argument;
-    }
-
-    return parts.join(QLatin1Char(' '));
 }
 
 bool ChromeMultiOpen::isValidName(const QString &name, QString *reason)

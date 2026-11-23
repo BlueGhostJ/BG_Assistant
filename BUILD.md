@@ -360,7 +360,7 @@ dir D:\Programs\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
 新建对话框不显示「数据目录」一行：目录自动取「全局位置/名称」，创建时一并存进配置；
 只有编辑已有多个开时才露出这一行（浏览 / 用全局目录 / 手改）。
 每个多开新建时就把数据目录的**绝对路径**存进 `ChromeProfile::dataDir`（ini 里的 `DataDir`）；
-旧配置没有这个键时按「全局目录/名称」补上（下次保存配置时落盘）。之后的启动、命令行预览都只用这个绝对路径，
+旧配置没有这个键时按「全局目录/名称」补上（下次保存配置时落盘）。之后的启动只用这个绝对路径，
 改全局位置不会把已有多个开悄悄指到别处。全局位置只决定「新建多开」的默认值。
 
 迁移走 `migrateDataDirectory`：同盘先 `QDir::rename`（原子操作，失败时旧目录不受影响）；
@@ -369,8 +369,7 @@ dir D:\Programs\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
 某个多开迁移失败时它保持原来的目录，编辑单个多开时迁移失败则放弃这次保存（可选仍用新目录）。
 
 命令行按 `--user-data-dir=<绝对路径> --disk-cache-dir=%TEMP%/<名称>` 起头，再按勾选项追加代理 / UA / `--app` / 窗口 / 显示模式等参数。
-真正传给 `chrome.exe` 的参数列表不带引号（交给 `QProcess` 做进程级转义）；
-界面展示时才按 bat 模板补引号（路径 / URL / UA / 窗口名固定带引号，复制到 cmd 里也不会被 URL 的 `&` 截断）。
+参数值本身不带引号，交给 `QProcess` 做进程级转义（所以界面上也不再展示拼好的命令行）。
 
 浏览器探测顺序：`%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe`，再是 `%ProgramFiles%` / `%ProgramFiles(x86)%` / `%ProgramW6432%` 下的同名路径；都没找到时「Chrome多开」菜单整体隐藏。
 

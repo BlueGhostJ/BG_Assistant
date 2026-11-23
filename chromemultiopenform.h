@@ -37,7 +37,6 @@ private:
     int selectedRow() const;
     void reload(const QString &selectName = QString());
     void updateButtons();
-    void updateCommandPreview();
     void setMessage(const QString &text, bool warning = false);
 
     void newProfile();

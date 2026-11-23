@@ -4,8 +4,6 @@
 #include "chromeprofileform.h"
 
 #include <QAbstractItemView>
-#include <QApplication>
-#include <QClipboard>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -88,14 +86,10 @@ ChromeMultiOpenForm::ChromeMultiOpenForm(QWidget *parent)
     ui->upButton->setAutoDefault(false);
     ui->downButton->setAutoDefault(false);
     ui->launchButton->setAutoDefault(false);
-    ui->copyCommandButton->setAutoDefault(false);
     ui->changeRootButton->setAutoDefault(false);
     ui->defaultRootButton->setAutoDefault(false);
     ui->openRootButton->setAutoDefault(false);
     ui->closeButton->setAutoDefault(false);
-
-    ui->commandEdit->setPlaceholderText(
-        QStringLiteral("在列表中选中一个多开即可查看。"));
 
     connect(ui->newButton, &QPushButton::clicked, this, &ChromeMultiOpenForm::newProfile);
     connect(ui->editButton, &QPushButton::clicked, this,
@@ -117,18 +111,10 @@ ChromeMultiOpenForm::ChromeMultiOpenForm(QWidget *parent)
     connect(ui->defaultRootButton, &QPushButton::clicked, this, &ChromeMultiOpenForm::resetDataRoot);
     connect(ui->openRootButton, &QPushButton::clicked, this, &ChromeMultiOpenForm::openDataRoot);
 
-    connect(ui->copyCommandButton, &QPushButton::clicked, this, [this]() {
-        if (ui->commandEdit->text().isEmpty())
-            return;
-        QApplication::clipboard()->setText(ui->commandEdit->text());
-        setMessage(QStringLiteral("启动命令已复制到剪贴板。"));
-    });
-
     connect(ui->profileTable, &QTableWidget::itemSelectionChanged, this, [this]() {
         const int row = selectedRow();
         m_selectedName = (row >= 0 && row < m_profiles.size()) ? m_profiles.at(row).name : QString();
         updateButtons();
-        updateCommandPreview();
     });
     // 双击某一行直接进编辑（启动有单独的按钮，避免误触拉起浏览器）
     connect(ui->profileTable, &QTableWidget::cellDoubleClicked, this,
@@ -193,7 +179,6 @@ void ChromeMultiOpenForm::reload(const QString &selectName)
     }
 
     updateButtons();
-    updateCommandPreview();
 
     setMessage(m_profiles.isEmpty()
                    ? QStringLiteral("还没有任何 Chrome 多开，点「新建」创建一个。")
@@ -211,21 +196,6 @@ void ChromeMultiOpenForm::updateButtons()
     ui->launchButton->setEnabled(hasSelection);
     ui->upButton->setEnabled(hasSelection && row > 0);
     ui->downButton->setEnabled(hasSelection && row + 1 < m_profiles.size());
-    ui->copyCommandButton->setEnabled(!ui->commandEdit->text().isEmpty());
-}
-
-void ChromeMultiOpenForm::updateCommandPreview()
-{
-    const int row = selectedRow();
-    if (row < 0 || row >= m_profiles.size()) {
-        ui->commandEdit->clear();
-        ui->copyCommandButton->setEnabled(false);
-        return;
-    }
-
-    ui->commandEdit->setText(ChromeMultiOpen::commandLine(m_profiles.at(row)));
-    ui->commandEdit->setCursorPosition(0);
-    ui->copyCommandButton->setEnabled(true);
 }
 
 void ChromeMultiOpenForm::setMessage(const QString &text, bool warning)

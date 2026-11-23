@@ -514,27 +514,6 @@
     </widget>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="previewLayout">
-     <property name="spacing">
-      <number>8</number>
-     </property>
-     <item>
-      <widget class="QLabel" name="previewTitleLabel">
-       <property name="text">
-        <string>启动命令</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLineEdit" name="previewEdit">
-       <property name="readOnly">
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
-   <item>
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>

@@ -46,7 +46,6 @@ private:
     void submit();                 // 校验通过后调用 QDialog::accept()
     void updateEnabledStates();
     void updateDataDirState();     // 目录输入框 / 说明 / 「用全局目录」按钮的可用状态
-    void updatePreview();
     void browseDataDir();
     void useGlobalDataDir();
     QString currentDataDir() const;

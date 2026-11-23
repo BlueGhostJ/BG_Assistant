@@ -77,7 +77,6 @@ QString proxySummary(const ChromeProfile &profile);   // 列表里显示的代�
 QString optionSummary(const ChromeProfile &profile);  // 列表里显示的其它选项摘要
 
 QStringList buildArguments(const ChromeProfile &profile);
-QString commandLine(const ChromeProfile &profile);    // 展示用（按 bat 习惯补引号）
 
 bool isValidName(const QString &name, QString *reason);  // 名称默认作为目录名，需按文件名规则校验
 bool samePath(const QString &a, const QString &b);       // 归一化后忽略大小写比较
