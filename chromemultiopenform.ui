@@ -242,7 +242,7 @@
       <item row="1" column="0" colspan="5">
        <widget class="QLabel" name="dataHintLabel">
         <property name="text">
-         <string>每个多开的数据按名称存放在该目录下的同名子目录里。默认位置是 exe 同目录的 chrome多开 文件夹；指向已有的多开目录后，同名子目录会被直接沿用（以前 bat 脚本留下的数据也能接着用）。</string>
+         <string>这是「新建多开」的默认位置：每个多开会在该目录下建一个同名子目录。已经存在的多开记住的是自己的绝对路径，改这里不会动它们，除非你在弹窗里选择迁移。指向以前 bat 放数据的目录，再新建同名多开即可沿用原来的登录状态。</string>
         </property>
         <property name="wordWrap">
          <bool>true</bool>

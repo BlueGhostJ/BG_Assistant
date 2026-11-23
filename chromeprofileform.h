@@ -31,12 +31,16 @@ private:
     Ui::ChromeProfileForm *ui;
 
     QList<ChromeProfile> m_others;
-    QString m_originalName;   // 编辑前的名称，只用来决定窗口标题
+    QString m_originalName;        // 编辑前的名称，只用来决定窗口标题
+    bool m_dataDirEdited = false;  // 用户手动指定过数据目录（之后不再跟着名称变化）
 
-    void submit();            // 校验通过后调用 QDialog::accept()
+    void submit();                 // 校验通过后调用 QDialog::accept()
     void updateEnabledStates();
-    void updateNameHint();
+    void updateDataDirState();     // 目录输入框 / 说明 / 「用全局目录」按钮的可用状态
     void updatePreview();
+    void browseDataDir();
+    void useGlobalDataDir();
+    QString currentDataDir() const;
 };
 
 #endif // CHROMEPROFILEFORM_H

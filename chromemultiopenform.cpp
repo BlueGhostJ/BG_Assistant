@@ -8,6 +8,7 @@
 #include <QClipboard>
 #include <QDir>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QHeaderView>
 #include <QIcon>
 #include <QMessageBox>
@@ -24,6 +25,7 @@ enum Column
     ColumnName = 0,
     ColumnProxy,
     ColumnOptions,
+    ColumnDataDir,
     ColumnCount
 };
 
@@ -40,10 +42,11 @@ ChromeMultiOpenForm::ChromeMultiOpenForm(QWidget *parent)
     setWindowIcon(QIcon(QStringLiteral(":/icon/icons/app.ico")));
     setAttribute(Qt::WA_QuitOnClose, false);
 
-    // 列表只读、整行选中；名称和代理按内容给宽，启动选项列吃掉剩余宽度
+    // 列表只读、整行选中；前三列固定宽度，数据目录列吃掉剩余宽度（有自定义目录后必须能看见）
     ui->profileTable->setColumnCount(ColumnCount);    ui->profileTable->setHorizontalHeaderLabels({QStringLiteral("名称"),
                                                  QStringLiteral("代理"),
-                                                 QStringLiteral("启动选项")});
+                                                 QStringLiteral("启动选项"),
+                                                 QStringLiteral("数据目录")});
     ui->profileTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     ui->profileTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->profileTable->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -54,9 +57,11 @@ ChromeMultiOpenForm::ChromeMultiOpenForm(QWidget *parent)
     ui->profileTable->verticalHeader()->setDefaultSectionSize(24);
     ui->profileTable->horizontalHeader()->setSectionResizeMode(ColumnName, QHeaderView::Interactive);
     ui->profileTable->horizontalHeader()->setSectionResizeMode(ColumnProxy, QHeaderView::Interactive);
-    ui->profileTable->horizontalHeader()->setSectionResizeMode(ColumnOptions, QHeaderView::Stretch);
-    ui->profileTable->setColumnWidth(ColumnName, 220);
-    ui->profileTable->setColumnWidth(ColumnProxy, 220);
+    ui->profileTable->horizontalHeader()->setSectionResizeMode(ColumnOptions, QHeaderView::Interactive);
+    ui->profileTable->horizontalHeader()->setSectionResizeMode(ColumnDataDir, QHeaderView::Stretch);
+    ui->profileTable->setColumnWidth(ColumnName, 180);
+    ui->profileTable->setColumnWidth(ColumnProxy, 170);
+    ui->profileTable->setColumnWidth(ColumnOptions, 200);
 
     // 数据位置那一行：路径输入框吃掉多余宽度，四个按钮保持原宽
     ui->dataLayout->setColumnStretch(1, 1);
@@ -141,6 +146,11 @@ void ChromeMultiOpenForm::reload(const QString &selectName)
                                       new QTableWidgetItem(ChromeMultiOpen::proxySummary(profile)));
             ui->profileTable->setItem(row, ColumnOptions,
                                       new QTableWidgetItem(ChromeMultiOpen::optionSummary(profile)));
+
+            const QString dataDir = QDir::toNativeSeparators(ChromeMultiOpen::profileDataDir(profile));
+            auto *dirItem = new QTableWidgetItem(dataDir);
+            dirItem->setToolTip(dataDir);   // 列宽不够时显示省略号，悬停看完整路径
+            ui->profileTable->setItem(row, ColumnDataDir, dirItem);
         }
 
         ui->profileTable->setUpdatesEnabled(true);
@@ -247,8 +257,7 @@ void ChromeMultiOpenForm::newProfile()
 
     reload(profile.name);
     setMessage(QStringLiteral("已创建多开「%1」，数据目录：%2")
-                   .arg(profile.name,
-                        QDir::toNativeSeparators(ChromeMultiOpen::dataDirFor(profile.name))));
+                   .arg(profile.name, QDir::toNativeSeparators(profile.dataDir)));
 }
 
 void ChromeMultiOpenForm::editProfile(int row)
@@ -269,20 +278,41 @@ void ChromeMultiOpenForm::editProfile(int row)
 
     const ChromeProfile updated = dialog.profile();
 
-    // 名称变了 = 数据目录也变了，旧目录不会自动搬过去，先说清楚
-    const QString oldDir = ChromeMultiOpen::dataDirFor(original.name);
-    const QString newDir = ChromeMultiOpen::dataDirFor(updated.name);
-    if (QString::compare(QDir::toNativeSeparators(oldDir), QDir::toNativeSeparators(newDir),
-                         Qt::CaseInsensitive) != 0) {
+    // 数据目录可能因为改名被自动带过去，也可能是用户手动改的 / 点了「用全局目录」。
+    // 不管哪种，只要换了位置就问一句要不要把数据一起搬过去。
+    const QString oldDir = ChromeMultiOpen::profileDataDir(original);
+    const QString newDir = ChromeMultiOpen::profileDataDir(updated);
+    const bool dirChanged = !ChromeMultiOpen::samePath(oldDir, newDir);
+    bool migrated = false;
+
+    if (dirChanged) {
         const auto answer = QMessageBox::question(
             this, windowTitle(),
-            QStringLiteral("名称改了，数据目录也会跟着换：\n\n"
-                           "旧：%1\n新：%2\n\n"
-                           "旧目录里的登录数据不会自动迁移，仍留在原处。是否继续？")
+            QStringLiteral("这个多开的数据目录变了：\n\n旧：%1\n新：%2\n\n"
+                           "是否把旧目录里的数据迁移到新目录？\n\n"
+                           "是：搬过去，成功后删除旧目录（迁移前请先关掉这个多开的 Chrome 窗口）\n"
+                           "否：只改配置，旧目录保持原样")
                 .arg(QDir::toNativeSeparators(oldDir), QDir::toNativeSeparators(newDir)),
-            QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-        if (answer != QMessageBox::Yes)
+            QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel, QMessageBox::Yes);
+        if (answer == QMessageBox::Cancel)
             return;
+
+        if (answer == QMessageBox::Yes) {
+            QString error;
+            if (!ChromeMultiOpen::migrateDataDirectory(oldDir, newDir, &error)) {
+                // 搬不动（目标已有数据 / 文件被占用）时给个退路：只改配置不搬数据
+                const auto retry = QMessageBox::question(
+                    this, windowTitle(),
+                    QStringLiteral("迁移没有完成：\n\n%1\n\n"
+                                   "是否仍然使用新的数据目录（不迁移数据）？")
+                        .arg(error),
+                    QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+                if (retry != QMessageBox::Yes)
+                    return;
+            } else {
+                migrated = true;
+            }
+        }
     }
 
     QList<ChromeProfile> profiles = m_profiles;
@@ -291,7 +321,16 @@ void ChromeMultiOpenForm::editProfile(int row)
         return;
 
     reload(updated.name);
-    setMessage(QStringLiteral("已保存多开「%1」。").arg(updated.name));
+
+    if (migrated) {
+        setMessage(QStringLiteral("已保存「%1」，数据已迁移到：%2")
+                       .arg(updated.name, QDir::toNativeSeparators(newDir)));
+    } else if (dirChanged) {
+        setMessage(QStringLiteral("已保存「%1」；数据没有迁移，仍留在：%2")
+                       .arg(updated.name, QDir::toNativeSeparators(oldDir)));
+    } else {
+        setMessage(QStringLiteral("已保存多开「%1」。").arg(updated.name));
+    }
 }
 
 void ChromeMultiOpenForm::duplicateSelected()
@@ -302,6 +341,8 @@ void ChromeMultiOpenForm::duplicateSelected()
 
     ChromeProfile copy = m_profiles.at(row);
     copy.name = uniqueCopyName(copy.name);
+    // 复制出来的必须是新目录：共用同一个目录会抢同一份登录状态
+    copy.dataDir = ChromeMultiOpen::dataDirFor(copy.name);
 
     QList<ChromeProfile> profiles = m_profiles;
     profiles.insert(row + 1, copy);
@@ -309,8 +350,11 @@ void ChromeMultiOpenForm::duplicateSelected()
         return;
 
     reload(copy.name);
-    setMessage(QStringLiteral("已复制为「%1」：参数照搬，数据目录是新的（首次启动是干净的 Chrome）。")
-                   .arg(copy.name));
+    setMessage(QStringLiteral("已复制为「%1」：参数照搬，数据目录是新的：%2%3")
+                   .arg(copy.name, QDir::toNativeSeparators(copy.dataDir),
+                        QFileInfo(copy.dataDir).isDir()
+                            ? QStringLiteral("（该目录已存在，会沿用其中的数据）")
+                            : QString()));
 }
 
 void ChromeMultiOpenForm::deleteSelected()
@@ -320,7 +364,7 @@ void ChromeMultiOpenForm::deleteSelected()
         return;
 
     const ChromeProfile profile = m_profiles.at(row);
-    const QString dataDir = QDir::toNativeSeparators(ChromeMultiOpen::dataDirFor(profile.name));
+    const QString dataDir = QDir::toNativeSeparators(ChromeMultiOpen::profileDataDir(profile));
 
     const auto answer = QMessageBox::question(
         this, windowTitle(),
@@ -365,18 +409,96 @@ void ChromeMultiOpenForm::changeDataRoot()
     if (directory.isEmpty())
         return;
 
-    ChromeMultiOpen::setDataRoot(directory);
-    reload();
-    setMessage(QStringLiteral("数据位置已改为：%1（各多开按名称到这个目录下找数据）")
-                   .arg(QDir::toNativeSeparators(ChromeMultiOpen::dataRoot())));
+    applyDataRoot(directory);
 }
 
 void ChromeMultiOpenForm::resetDataRoot()
 {
-    ChromeMultiOpen::setDataRoot(QString());
+    applyDataRoot(ChromeMultiOpen::defaultDataRoot());
+
+    // 已经回到默认位置时把 ini 里的自定义值清掉（等价于默认位置，exe 换目录时还能跟着走）
+    if (ChromeMultiOpen::samePath(ChromeMultiOpen::dataRoot(), ChromeMultiOpen::defaultDataRoot()))
+        ChromeMultiOpen::setDataRoot(QString());
+}
+
+void ChromeMultiOpenForm::applyDataRoot(const QString &newRoot)
+{
+    const QString root = QDir::cleanPath(QDir::fromNativeSeparators(newRoot.trimmed()));
+    if (root.isEmpty())
+        return;
+
+    if (ChromeMultiOpen::samePath(root, ChromeMultiOpen::dataRoot())) {
+        setMessage(QStringLiteral("数据位置没有变化：%1")
+                       .arg(QDir::toNativeSeparators(ChromeMultiOpen::dataRoot())));
+        return;
+    }
+
+    // 已有多个开时问一句：是搬数据，还是只改「新建多开的默认位置」
+    bool migrate = false;
+    if (!m_profiles.isEmpty()) {
+        const auto answer = QMessageBox::question(
+            this, windowTitle(),
+            QStringLiteral("已有 %1 个多开。\n\n是否把它们的数据一起迁到新位置？\n\n"
+                           "是：数据目录改为「新位置\\名称」，并把已有数据搬过去"
+                           "（迁移前请先关掉这些多开的 Chrome 窗口）\n"
+                           "否：只改全局默认位置，已有的多开继续用各自原来的目录")
+                .arg(int(m_profiles.size())),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+        migrate = (answer == QMessageBox::Yes);
+    }
+
+    QList<ChromeProfile> profiles = m_profiles;
+    QStringList failures;
+    int migratedCount = 0;
+
+    if (migrate) {
+        for (ChromeProfile &profile : profiles) {
+            const QString oldDir = ChromeMultiOpen::profileDataDir(profile);
+            const QString newDir = QDir(root).filePath(profile.name);
+            if (ChromeMultiOpen::samePath(oldDir, newDir)) {
+                profile.dataDir = newDir;
+                continue;
+            }
+
+            QString error;
+            if (ChromeMultiOpen::migrateDataDirectory(oldDir, newDir, &error)) {
+                profile.dataDir = newDir;
+                ++migratedCount;
+            } else {
+                failures << QStringLiteral("「%1」：%2").arg(profile.name, error);
+            }
+        }
+    }
+
+    ChromeMultiOpen::setDataRoot(root);
+
+    // 不管迁不迁移，都把每个多开的绝对目录写回配置：
+    // 以后再改全局位置，它们不会再被悄悄指到别处
+    if (!profiles.isEmpty() && !storeProfiles(profiles))
+        return;
+
     reload();
-    setMessage(QStringLiteral("已恢复默认数据位置：%1")
-                   .arg(QDir::toNativeSeparators(ChromeMultiOpen::dataRoot())));
+
+    if (!failures.isEmpty()) {
+        setMessage(QStringLiteral("数据位置已改为 %1，但有 %2 个多开没迁移成功，仍用各自原来的目录。")
+                       .arg(QDir::toNativeSeparators(root))
+                       .arg(failures.size()),
+                   true);
+        QMessageBox::warning(this, windowTitle(),
+                             QStringLiteral("以下多开没有迁移，仍使用各自原来的目录：\n\n%1")
+                                 .arg(failures.join(QLatin1Char('\n'))));
+        return;
+    }
+
+    if (migrate) {
+        setMessage(QStringLiteral("数据位置已改为：%1，共迁移 %2 个多开的数据。")
+                       .arg(QDir::toNativeSeparators(root))
+                       .arg(migratedCount));
+    } else {
+        setMessage(QStringLiteral("数据位置已改为：%1；已有的多开继续用各自原来的目录，"
+                                  "新建的多开才会放到新位置。")
+                       .arg(QDir::toNativeSeparators(root)));
+    }
 }
 
 void ChromeMultiOpenForm::openDataRoot()

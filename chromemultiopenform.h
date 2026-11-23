@@ -45,6 +45,7 @@ private:
     void changeDataRoot();
     void resetDataRoot();
     void openDataRoot();
+    void applyDataRoot(const QString &newRoot);   // 改全局位置：已有多个开时询问是否迁移数据
 
     bool storeProfiles(const QList<ChromeProfile> &profiles);
     bool nameExists(const QString &name) const;

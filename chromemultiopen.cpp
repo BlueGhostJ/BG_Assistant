@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QProcess>
 #include <QSet>
@@ -45,14 +46,80 @@ bool needsQuote(const QString &value)
            || value.contains(QLatin1Char('\t')) || value.contains(QLatin1Char('"'));
 }
 
-// 命令行展示用：值里有空格就加引号，和 bat 里的写法一致，方便直接复制出去试
-QString quoteForDisplay(const QString &value)
+// 命令行展示用：值里有空格就加引号，和 bat 里的写法一致，方便直接复制出去试。
+// force = true 时无论有没有空格都加引号（URL 里的 & 复制到 cmd 里不加引号会截断）。
+QString quoteForDisplay(const QString &value, bool force = false)
 {
-    if (!needsQuote(value))
+    if (!force && !needsQuote(value))
         return value;
     QString escaped = value;
     escaped.replace(QLatin1Char('"'), QStringLiteral("\\\""));
     return QStringLiteral("\"") + escaped + QStringLiteral("\"");
+}
+
+// bat 模板里固定带引号的那几个参数
+bool isQuotedSwitch(const QString &flag)
+{
+    static const QStringList flags{
+        QStringLiteral("--user-data-dir="), QStringLiteral("--disk-cache-dir="),
+        QStringLiteral("--proxy-server="),  QStringLiteral("--user-agent="),
+        QStringLiteral("--app="),           QStringLiteral("--window-name="),
+    };
+    return flags.contains(flag);
+}
+
+// 归一化后忽略大小写比较：Windows 路径不区分大小写
+bool isSamePath(const QString &a, const QString &b)
+{
+    return QString::compare(normalizePath(a), normalizePath(b), Qt::CaseInsensitive) == 0;
+}
+
+// child 是否就是 parent 或在 parent 里面：用来拦住「把目录搬进自己内部」
+bool isInside(const QString &child, const QString &parent)
+{
+    const QString c = normalizePath(child).toLower();
+    const QString p = normalizePath(parent).toLower();
+    if (c.isEmpty() || p.isEmpty())
+        return false;
+    if (c == p)
+        return true;
+    return c.startsWith(p.endsWith(QLatin1Char('/')) ? p : p + QLatin1Char('/'));
+}
+
+// 递归复制目录：跨盘迁移时用，调用方保证目标不存在或是空目录
+bool copyDirectory(const QString &from, const QString &to, QString *error)
+{
+    QDir source(from);
+    if (!source.exists()) {
+        if (error)
+            *error = QStringLiteral("源目录不存在：%1").arg(QDir::toNativeSeparators(from));
+        return false;
+    }
+    if (!QDir().mkpath(to)) {
+        if (error)
+            *error = QStringLiteral("无法创建目录：%1").arg(QDir::toNativeSeparators(to));
+        return false;
+    }
+
+    const QFileInfoList entries =
+        source.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries | QDir::Hidden | QDir::System);
+    for (const QFileInfo &entry : entries) {
+        const QString target = QDir(to).filePath(entry.fileName());
+        if (entry.isDir() && !entry.isSymLink()) {
+            if (!copyDirectory(entry.absoluteFilePath(), target, error))
+                return false;
+            continue;
+        }
+        if (!QFile::copy(entry.absoluteFilePath(), target)) {
+            if (error) {
+                *error = QStringLiteral("复制失败：%1\n"
+                                        "（如果这个多开正在运行，请先关掉它的 Chrome 窗口再试）")
+                             .arg(QDir::toNativeSeparators(entry.absoluteFilePath()));
+            }
+            return false;
+        }
+    }
+    return true;
 }
 
 // Windows 文件名保留字：叫 CON 的目录建不出来
@@ -154,6 +221,18 @@ QString ChromeMultiOpen::dataDirFor(const QString &name)
     return QDir(dataRoot()).filePath(name.trimmed());
 }
 
+QString ChromeMultiOpen::profileDataDir(const ChromeProfile &profile)
+{
+    // 新建时会把绝对路径记进配置；没记的（旧配置或手改坏的）再按全局目录推导
+    const QString stored = normalizePath(profile.dataDir);
+    return stored.isEmpty() ? dataDirFor(profile.name) : stored;
+}
+
+bool ChromeMultiOpen::samePath(const QString &a, const QString &b)
+{
+    return isSamePath(a, b);
+}
+
 QString ChromeMultiOpen::tempDirFor(const QString &name)
 {
     // 与 bat 里的 %temp%\%batFileName% 一致：浏览器缓存单独放系统临时目录，
@@ -165,6 +244,8 @@ QList<ChromeProfile> ChromeMultiOpen::loadProfiles()
 {
     QList<ChromeProfile> profiles;
 
+    const QString root = dataRoot();   // 只读一次：每个条目都读一遍 ini 没必要
+
     QSettings ini(iniFileName(), QSettings::IniFormat);
     ini.beginGroup(QString::fromLatin1(kGroup));
     const int count = ini.beginReadArray(QStringLiteral("Profiles"));
@@ -175,6 +256,12 @@ QList<ChromeProfile> ChromeMultiOpen::loadProfiles()
         profile.name = ini.value(QStringLiteral("Name")).toString().trimmed();
         if (profile.name.isEmpty())
             continue;   // 手工改坏的条目直接跳过
+
+        profile.dataDir = normalizePath(ini.value(QStringLiteral("DataDir")).toString());
+        if (profile.dataDir.isEmpty()) {
+            // 旧配置没有记绝对路径：按当前的全局目录补上，之后改全局目录不会再悄悄改到它
+            profile.dataDir = QDir(root).filePath(profile.name);
+        }
 
         profile.proxyMode = ini.value(QStringLiteral("ProxyMode"),
                                       int(ChromeProfile::ProxySystem))
@@ -228,6 +315,7 @@ bool ChromeMultiOpen::saveProfiles(const QList<ChromeProfile> &profiles)
         const ChromeProfile &profile = profiles.at(i);
 
         ini.setValue(QStringLiteral("Name"), profile.name);
+        ini.setValue(QStringLiteral("DataDir"), profile.dataDir);
         ini.setValue(QStringLiteral("ProxyMode"), profile.proxyMode);
         ini.setValue(QStringLiteral("ProxyServer"), profile.proxyServer);
         ini.setValue(QStringLiteral("UseUserAgent"), profile.useUserAgent);
@@ -303,7 +391,7 @@ QStringList ChromeMultiOpen::buildArguments(const ChromeProfile &profile)
 
     // 必带的两项：独立数据目录 + 独立缓存目录（对应 bat 脚本里的两个 --*-dir）
     arguments << QStringLiteral("--user-data-dir=")
-                     + QDir::toNativeSeparators(dataDirFor(profile.name))
+                     + QDir::toNativeSeparators(profileDataDir(profile))
               << QStringLiteral("--disk-cache-dir=")
                      + QDir::toNativeSeparators(tempDirFor(profile.name));
 
@@ -357,7 +445,7 @@ QString ChromeMultiOpen::commandLine(const ChromeProfile &profile)
         exe = QStringLiteral("chrome.exe");
 
     QStringList parts;
-    parts << quoteForDisplay(QDir::toNativeSeparators(exe));
+    parts << quoteForDisplay(QDir::toNativeSeparators(exe), true);
 
     for (const QString &argument : buildArguments(profile)) {
         const int equals = argument.indexOf(QLatin1Char('='));
@@ -368,8 +456,15 @@ QString ChromeMultiOpen::commandLine(const ChromeProfile &profile)
 
         const QString flag = argument.left(equals + 1);
         const QString value = argument.mid(equals + 1);
-        // 带空格的值加引号显示（bat 里也是这么写的），复制到 cmd 里能直接跑
-        parts << (needsQuote(value) ? flag + quoteForDisplay(value) : argument);
+
+        // 展示时按 bat 模板的写法补引号：路径 / URL / UA / 窗口名一律带引号，
+        // 这样复制到 cmd 里也不会被 URL 中的 & 截断。
+        // 注意引号只出现在展示文本里，真正传给 chrome.exe 的参数列表不带引号
+        // （QProcess 会在需要时做进程级转义），两种写法 Chrome 都认。
+        if (isQuotedSwitch(flag) || needsQuote(value))
+            parts << flag + quoteForDisplay(value, isQuotedSwitch(flag));
+        else
+            parts << argument;
     }
 
     return parts.join(QLatin1Char(' '));
@@ -441,7 +536,7 @@ bool ChromeMultiOpen::launch(const ChromeProfile &profile, QString *error)
     }
 
     // 与脚本里的 md 一样先把目录建好；数据目录建不出来就没法继续
-    const QString dataDir = dataDirFor(profile.name);
+    const QString dataDir = profileDataDir(profile);
     if (!QDir().mkpath(dataDir)) {
         if (error) {
             *error = QStringLiteral("无法创建多开数据目录：\n%1\n\n"
@@ -465,5 +560,80 @@ bool ChromeMultiOpen::launch(const ChromeProfile &profile, QString *error)
         return false;
     }
 
+    return true;
+}
+
+bool ChromeMultiOpen::migrateDataDirectory(const QString &from, const QString &to, QString *error)
+{
+    if (error)
+        error->clear();
+
+    const QString source = normalizePath(from);
+    const QString target = normalizePath(to);
+
+    auto fail = [error](const QString &text) {
+        if (error)
+            *error = text;
+        return false;
+    };
+
+    if (source.isEmpty() || target.isEmpty())
+        return fail(QStringLiteral("数据目录为空，无法迁移。"));
+
+    if (isSamePath(source, target))
+        return true;   // 同一个目录，没什么可搬的
+
+    // 互为父子时不能搬：把目录复制进它自己的子目录会越搬越深
+    if (isInside(target, source)) {
+        return fail(QStringLiteral("新目录不能放在旧目录里面：\n旧：%1\n新：%2")
+                        .arg(QDir::toNativeSeparators(source), QDir::toNativeSeparators(target)));
+    }
+    if (isInside(source, target)) {
+        return fail(QStringLiteral("旧目录在新目录里面，无法整体迁移：\n旧：%1\n新：%2")
+                        .arg(QDir::toNativeSeparators(source), QDir::toNativeSeparators(target)));
+    }
+
+    const QFileInfo sourceInfo(source);
+    if (!sourceInfo.exists()) {
+        // 没有旧数据（新建的多开或手工删过）：只把新目录建出来
+        if (!QDir().mkpath(target))
+            return fail(QStringLiteral("无法创建数据目录：%1").arg(QDir::toNativeSeparators(target)));
+        return true;
+    }
+    if (!sourceInfo.isDir()) {
+        return fail(QStringLiteral("旧数据位置不是目录：%1").arg(QDir::toNativeSeparators(source)));
+    }
+
+    const QFileInfo targetInfo(target);
+    if (targetInfo.exists()) {
+        if (!targetInfo.isDir()) {
+            return fail(QStringLiteral("新数据位置已存在同名文件：%1")
+                            .arg(QDir::toNativeSeparators(target)));
+        }
+        const QStringList existing =
+            QDir(target).entryList(QDir::NoDotAndDotDot | QDir::AllEntries | QDir::Hidden | QDir::System);
+        if (!existing.isEmpty()) {
+            return fail(QStringLiteral("新目录已存在且不为空，为避免覆盖已有数据，请换一个空目录：\n%1")
+                            .arg(QDir::toNativeSeparators(target)));
+        }
+    }
+
+    // 同一块盘：rename 一步到位，失败也不会动到旧目录
+    if (QDir().rename(source, target))
+        return true;
+
+    // 跨盘（或目标已存在空目录）：先完整复制，成功后再删旧目录
+    QString copyError;
+    if (!copyDirectory(source, target, &copyError)) {
+        // 复制失败就把刚建出来的目标清掉，旧目录保持原样
+        QDir(target).removeRecursively();
+        return fail(QStringLiteral("%1\n\n旧数据目录未做任何改动：%2")
+                        .arg(copyError, QDir::toNativeSeparators(source)));
+    }
+
+    if (!QDir(source).removeRecursively()) {
+        return fail(QStringLiteral("数据已复制到新位置，但旧目录没能完全删除，请手动清理：\n%1")
+                        .arg(QDir::toNativeSeparators(source)));
+    }
     return true;
 }

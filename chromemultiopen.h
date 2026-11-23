@@ -9,8 +9,8 @@
 //
 // 参数写法对齐原来的 bat 脚本：
 //   chrome.exe --user-data-dir="<数据目录>" --disk-cache-dir="<临时目录>" [其它参数]
-// 其中数据目录 = <数据根目录>\<名称>，临时缓存目录 = %TEMP%\<名称>，
-// 与脚本里 %cd%\%batFileName% 和 %temp%\%batFileName% 的对应关系一致。
+// 数据目录在新建时就确定成绝对路径存进配置（dataDir），之后不会随全局目录漂移；
+// 临时缓存目录始终是 %TEMP%\<名称>，与脚本里 %temp%\%batFileName% 的对应关系一致。
 struct ChromeProfile
 {
     // 代理方式，取值与界面上代理下拉框的顺序一致
@@ -21,7 +21,8 @@ struct ChromeProfile
         ProxyDisabled = 2   // --no-proxy-server
     };
 
-    QString name;                 // 必填；同时作为多开数据子目录名
+    QString name;                 // 必填；默认用它命名数据子目录
+    QString dataDir;              // 数据目录的绝对路径；空值表示按全局目录推导（旧配置兜底）
 
     int proxyMode = ProxySystem;
     QString proxyServer;          // 如 socks5://127.0.0.1:1080
@@ -51,7 +52,7 @@ struct ChromeProfile
 
 // Chrome 多开的配置、目录与启动逻辑。
 // 配置写在 exe 同目录 BGAssistant.ini 的 [ChromeMultiOpen] 分组里，
-// 数据目录默认是 exe 同目录的 chrome多开 文件夹（和原来的 bat 习惯一致）。
+// 全局数据目录默认是 exe 同目录的 chrome多开 文件夹（和原来的 bat 习惯一致）。
 namespace ChromeMultiOpen {
 
 QString iniPath();
@@ -64,8 +65,9 @@ QString defaultDataRoot();            // exe 同目录\chrome多开
 QString dataRoot();                   // 用户指定过就用指定位置，否则用默认位置
 void setDataRoot(const QString &path); // 传空表示恢复默认
 
-QString dataDirFor(const QString &name);
-QString tempDirFor(const QString &name);
+QString dataDirFor(const QString &name);              // 全局目录下的同名子目录（新建时的默认值）
+QString profileDataDir(const ChromeProfile &profile); // 实际使用的目录：存了绝对路径就用存的
+QString tempDirFor(const QString &name);              // %TEMP%\<名称>
 
 QList<ChromeProfile> loadProfiles();
 bool saveProfiles(const QList<ChromeProfile> &profiles);   // 写盘失败（目录只读等）返回 false
@@ -74,12 +76,17 @@ QString proxySummary(const ChromeProfile &profile);   // 列表里显示的代�
 QString optionSummary(const ChromeProfile &profile);  // 列表里显示的其它选项摘要
 
 QStringList buildArguments(const ChromeProfile &profile);
-QString commandLine(const ChromeProfile &profile);    // 展示用（带引号）
+QString commandLine(const ChromeProfile &profile);    // 展示用（按 bat 习惯补引号）
 
-bool isValidName(const QString &name, QString *reason);  // 名称同时是目录名，需按文件名规则校验
+bool isValidName(const QString &name, QString *reason);  // 名称默认作为目录名，需按文件名规则校验
+bool samePath(const QString &a, const QString &b);       // 归一化后忽略大小写比较
 
 // 建好数据/临时目录后以独立进程启动 chrome.exe，失败时把原因写进 error。
 bool launch(const ChromeProfile &profile, QString *error);
+
+// 把旧数据目录整体搬到新目录：同盘直接 rename，跨盘先完整复制、成功后再删旧目录。
+// 旧目录不存在时只创建新目录；目标已存在且非空时拒绝，避免覆盖已有数据。
+bool migrateDataDirectory(const QString &from, const QString &to, QString *error);
 
 } // namespace ChromeMultiOpen
 

@@ -4,6 +4,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDir>
+#include <QFileDialog>
 #include <QFileInfo>
 #include <QIcon>
 #include <QLineEdit>
@@ -78,7 +79,7 @@ ChromeProfileForm::ChromeProfileForm(const QList<ChromeProfile> &others, QWidget
     });
 
     connect(ui->nameEdit, &QLineEdit::textChanged, this, [this]() {
-        updateNameHint();
+        updateDataDirState();
         updatePreview();
     });
     connect(ui->proxyServerEdit, &QLineEdit::textChanged, this, [this]() { updatePreview(); });
@@ -87,6 +88,9 @@ ChromeProfileForm::ChromeProfileForm(const QList<ChromeProfile> &others, QWidget
     connect(ui->windowNameEdit, &QLineEdit::textChanged, this, [this]() { updatePreview(); });
 
     connect(ui->proxyModeCombo, &QComboBox::currentIndexChanged, this, [this]() {
+        // 没选「指定代理服务器」时把地址清空并置灰：避免界面上留着一条用不到的旧值
+        if (ui->proxyModeCombo->currentIndex() != ChromeProfile::ProxyCustom)
+            ui->proxyServerEdit->clear();
         updateEnabledStates();
         updatePreview();
     });
@@ -96,6 +100,22 @@ ChromeProfileForm::ChromeProfileForm(const QList<ChromeProfile> &others, QWidget
     for (QSpinBox *spin : spins) {
         connect(spin, &QSpinBox::valueChanged, this, [this]() { updatePreview(); });
     }
+
+    // 手动改过目录就不再跟着名称走（textEdited 只响应用户输入，不会被 setText 触发）
+    connect(ui->dataDirEdit, &QLineEdit::textEdited, this, [this]() {
+        m_dataDirEdited = true;
+        updateDataDirState();
+        updatePreview();
+    });
+
+    connect(ui->browseDataDirButton, &QPushButton::clicked, this, &ChromeProfileForm::browseDataDir);
+    connect(ui->globalDataDirButton, &QPushButton::clicked, this, &ChromeProfileForm::useGlobalDataDir);
+
+    ui->browseDataDirButton->setToolTip(
+        QStringLiteral("给这个多开单独指定数据目录（目录已存在时会沿用里面的登录数据）"));
+    ui->globalDataDirButton->setToolTip(
+        QStringLiteral("把数据目录改回全局位置下的同名子目录；点「确定」后会问你是否迁移已有数据"));
+    ui->previewEdit->setPlaceholderText(QStringLiteral("填写名称后显示实际执行的命令行"));
 
     setProfile(ChromeProfile());
 }
@@ -111,7 +131,12 @@ void ChromeProfileForm::setProfile(const ChromeProfile &profile)
 
     ui->nameEdit->setText(profile.name);
     ui->proxyModeCombo->setCurrentIndex(profile.proxyMode);   // 顺序与 ProxyMode 枚举一致
-    ui->proxyServerEdit->setText(profile.proxyServer);
+
+    // 只有「指定代理服务器」才回填地址；其它模式输入框保持空（与置灰状态一致）
+    if (profile.proxyMode == ChromeProfile::ProxyCustom)
+        ui->proxyServerEdit->setText(profile.proxyServer);
+    else
+        ui->proxyServerEdit->clear();
 
     ui->userAgentCheckBox->setChecked(profile.useUserAgent);
     ui->userAgentEdit->setText(profile.userAgent);
@@ -138,12 +163,22 @@ void ChromeProfileForm::setProfile(const ChromeProfile &profile)
     ui->fullscreenCheckBox->setChecked(profile.startFullscreen);
     ui->kioskCheckBox->setChecked(profile.kiosk);
 
+    // 数据目录：新建时先空着（填了名称再生成）；已有配置用它记住的绝对路径。
+    // 和全局目录下的同名子目录一致时，之后改名称会跟着走；用户指定过就保持不动。
+    const QString dataDir = profile.name.trimmed().isEmpty()
+                                ? QString()
+                                : ChromeMultiOpen::profileDataDir(profile);
+    m_dataDirEdited = !dataDir.isEmpty()
+                      && !ChromeMultiOpen::samePath(dataDir, ChromeMultiOpen::dataDirFor(profile.name));
+    ui->dataDirEdit->setText(dataDir.isEmpty() ? QString() : QDir::toNativeSeparators(dataDir));
+    ui->dataDirEdit->setCursorPosition(0);
+
     setWindowTitle(m_originalName.isEmpty()
                        ? QStringLiteral("新建 Chrome 多开")
                        : QStringLiteral("编辑 Chrome 多开 - %1").arg(m_originalName));
 
     updateEnabledStates();
-    updateNameHint();
+    updateDataDirState();
     updatePreview();
 }
 
@@ -152,8 +187,13 @@ ChromeProfile ChromeProfileForm::profile() const
     ChromeProfile profile;
 
     profile.name = ui->nameEdit->text().trimmed();
+    profile.dataDir = currentDataDir();
+
     profile.proxyMode = ui->proxyModeCombo->currentIndex();
-    profile.proxyServer = stripped(ui->proxyServerEdit->text());
+    // 非「指定代理服务器」时不保留地址，下次切换回来也是干净的
+    profile.proxyServer = profile.proxyMode == ChromeProfile::ProxyCustom
+                              ? stripped(ui->proxyServerEdit->text())
+                              : QString();
 
     profile.useUserAgent = ui->userAgentCheckBox->isChecked();
     profile.userAgent = stripped(ui->userAgentEdit->text());
@@ -180,6 +220,11 @@ ChromeProfile ChromeProfileForm::profile() const
     return profile;
 }
 
+QString ChromeProfileForm::currentDataDir() const
+{
+    return QDir::cleanPath(QDir::fromNativeSeparators(ui->dataDirEdit->text().trimmed()));
+}
+
 void ChromeProfileForm::submit()
 {
     const QString name = ui->nameEdit->text().trimmed();
@@ -193,16 +238,48 @@ void ChromeProfileForm::submit()
         return;
     }
 
-    // 名称同时是数据目录名，重名会让两个多开共用一套登录状态
+    // 名称是列表和托盘菜单里的显示名，重名会分不清
     for (const ChromeProfile &other : m_others) {
         if (other.name.compare(name, Qt::CaseInsensitive) != 0)
             continue;
         QMessageBox::warning(this, windowTitle(),
-                             QStringLiteral("已经有一个叫「%1」的多开了，请换一个名称。\n\n"
-                                            "名称同时是数据目录名，重名会共用同一套登录状态。")
+                             QStringLiteral("已经有一个叫「%1」的多开了，请换一个名称。")
                                  .arg(name));
         ui->nameEdit->setFocus();
         ui->nameEdit->selectAll();
+        return;
+    }
+
+    // 数据目录：必填、必须是绝对路径、不能和其它多开共用
+    const QString dataDir = currentDataDir();
+    if (dataDir.isEmpty()) {
+        QMessageBox::warning(this, windowTitle(),
+                             QStringLiteral("请填写数据目录。\n\n"
+                                            "默认使用全局数据位置下的同名子目录，"
+                                            "也可以点「浏览…」指定别的位置。"));
+        return;
+    }
+    if (!QDir::isAbsolutePath(dataDir)) {
+        QMessageBox::warning(this, windowTitle(),
+                             QStringLiteral("数据目录需要是绝对路径（例如 D:\\Chrome多开\\工作号）。"));
+        return;
+    }
+
+    const QFileInfo dataDirInfo(dataDir);
+    if (dataDirInfo.exists() && !dataDirInfo.isDir()) {
+        QMessageBox::warning(this, windowTitle(),
+                             QStringLiteral("数据目录指向了一个文件，请选择文件夹：\n%1")
+                                 .arg(QDir::toNativeSeparators(dataDir)));
+        return;
+    }
+
+    for (const ChromeProfile &other : m_others) {
+        if (!ChromeMultiOpen::samePath(ChromeMultiOpen::profileDataDir(other), dataDir))
+            continue;
+        QMessageBox::warning(this, windowTitle(),
+                             QStringLiteral("这个数据目录已经被多开「%1」使用了。\n\n"
+                                            "两个多开共用同一个目录会抢同一份登录状态，请换一个目录。")
+                                 .arg(other.name));
         return;
     }
 
@@ -234,7 +311,7 @@ void ChromeProfileForm::submit()
         return;
     }
 
-    // 名称前后的空格不进入目录名
+    // 名称前后的空格不进入显示名和默认目录名
     if (ui->nameEdit->text() != name)
         ui->nameEdit->setText(name);
 
@@ -243,7 +320,7 @@ void ChromeProfileForm::submit()
 
 void ChromeProfileForm::updateEnabledStates()
 {
-    // 只有「指定代理服务器」才需要填地址
+    // 只有「指定代理服务器」才需要填地址，其余两种模式输入框直接置灰
     ui->proxyServerEdit->setEnabled(ui->proxyModeCombo->currentIndex() == ChromeProfile::ProxyCustom);
 
     ui->userAgentEdit->setEnabled(ui->userAgentCheckBox->isChecked());
@@ -255,33 +332,81 @@ void ChromeProfileForm::updateEnabledStates()
     ui->windowNameEdit->setEnabled(ui->windowNameCheckBox->isChecked());
 }
 
-void ChromeProfileForm::updateNameHint()
+void ChromeProfileForm::updateDataDirState()
 {
     const QString name = ui->nameEdit->text().trimmed();
-    if (name.isEmpty()) {
-        ui->dataDirLabel->setText(
-            QStringLiteral("填写名称后，自动生成「数据位置」下的同名子目录"));
-        return;
-    }
 
     QString reason;
-    if (!ChromeMultiOpen::isValidName(name, &reason)) {
-        ui->dataDirLabel->setText(QStringLiteral("名称不合法：%1").arg(reason));
+    const bool nameValid = ChromeMultiOpen::isValidName(name, &reason);
+    const QString globalDir = nameValid ? ChromeMultiOpen::dataDirFor(name) : QString();
+
+    // 没手动指定过目录时，目录跟着名称走：<全局数据位置>\<名称>
+    if (!m_dataDirEdited) {
+        ui->dataDirEdit->setText(globalDir.isEmpty() ? QString()
+                                                     : QDir::toNativeSeparators(globalDir));
+        ui->dataDirEdit->setCursorPosition(0);
+    }
+
+    const QString dir = currentDataDir();
+    const bool differsFromGlobal = !dir.isEmpty() && !globalDir.isEmpty()
+                                   && !ChromeMultiOpen::samePath(dir, globalDir);
+    ui->globalDataDirButton->setEnabled(differsFromGlobal);
+
+    if (dir.isEmpty()) {
+        ui->dataDirHintLabel->setText(
+            QStringLiteral("填写名称后自动使用全局数据位置下的同名子目录；也可以点「浏览…」单独指定。"));
+        return;
+    }
+    if (!QDir::isAbsolutePath(dir)) {
+        ui->dataDirHintLabel->setText(
+            QStringLiteral("请填写绝对路径，例如 D:\\Chrome多开\\工作号。"));
         return;
     }
 
-    // 目录已经存在时明确提示一下：这正是「指定数据位置后直接沿用已有登录数据」的用法
-    const QString dir = ChromeMultiOpen::dataDirFor(name);
-    const QString state = QFileInfo(dir).isDir()
-                              ? QStringLiteral("目录已存在，将沿用其中的登录状态。")
-                              : QStringLiteral("目录尚未创建，首次启动时自动创建。");
+    QStringList lines;
+    lines << (QFileInfo(dir).isDir() ? QStringLiteral("目录已存在，将沿用其中的登录状态。")
+                                     : QStringLiteral("目录尚未创建，首次启动时自动创建。"));
+    if (nameValid && differsFromGlobal)
+        lines << QStringLiteral("与全局数据位置不同；确定时会问你是否把旧目录的数据迁移过来。");
 
-    ui->dataDirLabel->setText(QStringLiteral("%1\n%2")
-                                  .arg(QDir::toNativeSeparators(dir), state));
+    ui->dataDirHintLabel->setText(lines.join(QLatin1Char('\n')));
+}
+
+void ChromeProfileForm::browseDataDir()
+{
+    const QString start = currentDataDir().isEmpty() ? ChromeMultiOpen::dataRoot()
+                                                     : currentDataDir();
+    const QString directory = QFileDialog::getExistingDirectory(
+        this, QStringLiteral("选择这个多开的数据目录"), QDir::toNativeSeparators(start));
+    if (directory.isEmpty())
+        return;
+
+    ui->dataDirEdit->setText(
+        QDir::toNativeSeparators(QDir::cleanPath(QDir::fromNativeSeparators(directory))));
+    ui->dataDirEdit->setCursorPosition(0);
+    m_dataDirEdited = true;
+    updateDataDirState();
+    updatePreview();
+}
+
+void ChromeProfileForm::useGlobalDataDir()
+{
+    // 一键改回全局目录（<全局数据位置>\<名称>）；真正的搬迁在点「确定」后询问
+    m_dataDirEdited = false;
+    updateDataDirState();
+    updatePreview();
 }
 
 void ChromeProfileForm::updatePreview()
 {
-    ui->previewEdit->setText(ChromeMultiOpen::commandLine(profile()));
+    const ChromeProfile current = profile();
+
+    // 还没填名称时没有确定的数据目录，先显示占位提示，别展示一条错误的命令行
+    if (current.dataDir.isEmpty()) {
+        ui->previewEdit->clear();
+        return;
+    }
+
+    ui->previewEdit->setText(ChromeMultiOpen::commandLine(current));
     ui->previewEdit->setCursorPosition(0);
 }
