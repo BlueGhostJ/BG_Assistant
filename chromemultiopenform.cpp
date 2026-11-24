@@ -4,11 +4,13 @@
 #include "chromeprofileform.h"
 
 #include <QAbstractItemView>
+#include <QAction>
 #include <QComboBox>
 #include <QDir>
 #include <QFileDialog>
 #include <QHeaderView>
 #include <QIcon>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QSignalBlocker>
@@ -152,6 +154,11 @@ ChromeMultiOpenForm::ChromeMultiOpenForm(QWidget *parent)
         m_selectedName = (row >= 0 && row < m_profiles.size()) ? m_profiles.at(row).name : QString();
         updateButtons();
     });
+    // 列表右键菜单：启动 / 编辑 / 删除
+    ui->profileTable->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(ui->profileTable, &QTableWidget::customContextMenuRequested, this,
+            &ChromeMultiOpenForm::showTableMenu);
+
     // 双击行的动作跟随工具栏里的选择（默认编辑）
     connect(ui->profileTable, &QTableWidget::cellDoubleClicked, this, [this](int row, int) {
         if (ui->doubleClickCombo->currentIndex() == ChromeMultiOpen::DoubleClickLaunch)
@@ -364,7 +371,11 @@ void ChromeMultiOpenForm::duplicateSelected()
 
 void ChromeMultiOpenForm::deleteSelected()
 {
-    const int row = selectedRow();
+    deleteProfile(selectedRow());
+}
+
+void ChromeMultiOpenForm::deleteProfile(int row)
+{
     if (row < 0 || row >= m_profiles.size())
         return;
 
@@ -401,6 +412,37 @@ void ChromeMultiOpenForm::launchProfile(int row)
     QString error;
     if (!ChromeMultiOpen::launch(m_profiles.at(row), &error))
         QMessageBox::warning(this, windowTitle(), error);
+}
+
+void ChromeMultiOpenForm::showTableMenu(const QPoint &pos)
+{
+    // 只有点在具体某一行上才弹菜单：右键先选中它，后续动作用同一行
+    const QModelIndex index = ui->profileTable->indexAt(pos);
+    if (!index.isValid())
+        return;
+
+    const int row = index.row();
+    if (row < 0 || row >= m_profiles.size())
+        return;
+
+    ui->profileTable->selectRow(row);
+
+    QMenu menu(this);
+    QAction *launchAction = menu.addAction(QStringLiteral("启动"));
+    QAction *editAction = menu.addAction(QStringLiteral("编辑"));
+    menu.addSeparator();
+    QAction *deleteAction = menu.addAction(QStringLiteral("删除"));
+
+    QAction *chosen = menu.exec(ui->profileTable->viewport()->mapToGlobal(pos));
+    if (!chosen)
+        return;
+
+    if (chosen == launchAction)
+        launchProfile(row);
+    else if (chosen == editAction)
+        editProfile(row);
+    else if (chosen == deleteAction)
+        deleteProfile(row);
 }
 
 void ChromeMultiOpenForm::moveProfile(int from, int to)

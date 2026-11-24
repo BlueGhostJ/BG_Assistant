@@ -3,6 +3,7 @@
 
 #include <QDialog>
 #include <QList>
+#include <QPoint>
 
 #include "chromemultiopen.h"
 
@@ -42,8 +43,11 @@ private:
     void editProfile(int row);
     void duplicateSelected();
     void deleteSelected();
+    void deleteProfile(int row);   // 「删除」按钮和右键菜单共用
     void launchSelected();
     void launchProfile(int row);   // 「启动选中」和双击启动共用
+
+    void showTableMenu(const QPoint &pos);   // 列表右键：启动 / 编辑 / 删除
 
     void moveProfile(int from, int to);   // 调整顺序并写回配置（托盘菜单同步）
 
