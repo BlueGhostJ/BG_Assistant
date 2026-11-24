@@ -37,13 +37,13 @@ private:
     int selectedRow() const;
     void reload(const QString &selectName = QString());
     void updateButtons();
-    void setMessage(const QString &text, bool warning = false);
 
     void newProfile();
     void editProfile(int row);
     void duplicateSelected();
     void deleteSelected();
     void launchSelected();
+    void launchProfile(int row);   // 「启动选中」和双击启动共用
 
     void moveProfile(int from, int to);   // 调整顺序并写回配置（托盘菜单同步）
 

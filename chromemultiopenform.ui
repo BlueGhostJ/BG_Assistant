@@ -38,7 +38,7 @@
    <item>
     <widget class="QLabel" name="hintLabel">
      <property name="text">
-      <string>每个多开使用独立的数据目录和缓存目录，可以同时登录多个账号。按住某一行拖动，或用「上移 / 下移」调整顺序，托盘菜单按这个顺序排列。</string>
+      <string>每个多开使用独立的数据目录和缓存目录，可以同时登录多个账号。</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
@@ -126,6 +126,33 @@
        <property name="text">
         <string>下移</string>
        </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="doubleClickLabel">
+       <property name="text">
+        <string>双击</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="doubleClickCombo">
+       <property name="minimumSize">
+        <size>
+         <width>84</width>
+         <height>26</height>
+        </size>
+       </property>
+       <item>
+        <property name="text">
+         <string>编辑</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>启动</string>
+        </property>
+       </item>
       </widget>
      </item>
      <item>
@@ -243,49 +270,6 @@
       </item>
      </layout>
     </widget>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="bottomLayout">
-     <property name="spacing">
-      <number>8</number>
-     </property>
-     <item>
-      <widget class="QLabel" name="messageLabel">
-       <property name="text">
-        <string/>
-       </property>
-       <property name="wordWrap">
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <spacer name="bottomSpacer">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
-      <widget class="QPushButton" name="closeButton">
-       <property name="minimumSize">
-        <size>
-         <width>90</width>
-         <height>28</height>
-        </size>
-       </property>
-       <property name="text">
-        <string>关闭</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
    </item>
   </layout>
  </widget>

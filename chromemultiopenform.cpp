@@ -4,9 +4,9 @@
 #include "chromeprofileform.h"
 
 #include <QAbstractItemView>
+#include <QComboBox>
 #include <QDir>
 #include <QFileDialog>
-#include <QFileInfo>
 #include <QHeaderView>
 #include <QIcon>
 #include <QMessageBox>
@@ -29,9 +29,6 @@ enum Column
     ColumnDataDir,
     ColumnCount
 };
-
-// 提示文字里给「失败」用的红色：与端口转发窗口保持一致
-const char *const kWarningStyle = "color: #d9534f;";
 
 // 迁移三选一：迁移 / 不迁移 / 取消（关掉窗口或按 Esc 都算取消）
 enum class MigrateChoice
@@ -73,6 +70,10 @@ ChromeMultiOpenForm::ChromeMultiOpenForm(QWidget *parent)
     setWindowIcon(QIcon(QStringLiteral(":/icon/icons/app.ico")));
     setAttribute(Qt::WA_QuitOnClose, false);
 
+    // QDialog 默认只有关闭按钮：这里补上最小化 / 最大化，并去掉标题栏上的「?」帮助按钮
+    setWindowFlags(Qt::Dialog | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+                   | Qt::WindowMinMaxButtonsHint | Qt::WindowCloseButtonHint);
+
     // 列表只读、整行选中；前三列固定宽度，数据目录列吃掉剩余宽度（有自定义目录后必须能看见）
     ui->profileTable->setColumnCount(ColumnCount);
     ui->profileTable->setHorizontalHeaderLabels({QStringLiteral("名称"),
@@ -109,7 +110,7 @@ ChromeMultiOpenForm::ChromeMultiOpenForm(QWidget *parent)
     // 数据位置那一行：路径输入框吃掉多余宽度，四个按钮保持原宽
     ui->dataLayout->setColumnStretch(1, 1);
 
-    // 窗口里的输入框只有一个只读命令框，回车不该误触发任何按钮
+    // 窗口里没有需要回车的输入框，按钮统一关掉 autoDefault，避免误触
     ui->newButton->setAutoDefault(false);
     ui->editButton->setAutoDefault(false);
     ui->duplicateButton->setAutoDefault(false);
@@ -120,7 +121,6 @@ ChromeMultiOpenForm::ChromeMultiOpenForm(QWidget *parent)
     ui->changeRootButton->setAutoDefault(false);
     ui->defaultRootButton->setAutoDefault(false);
     ui->openRootButton->setAutoDefault(false);
-    ui->closeButton->setAutoDefault(false);
 
     connect(ui->newButton, &QPushButton::clicked, this, &ChromeMultiOpenForm::newProfile);
     connect(ui->editButton, &QPushButton::clicked, this,
@@ -136,7 +136,12 @@ ChromeMultiOpenForm::ChromeMultiOpenForm(QWidget *parent)
     });
     connect(ui->deleteButton, &QPushButton::clicked, this, &ChromeMultiOpenForm::deleteSelected);
     connect(ui->launchButton, &QPushButton::clicked, this, &ChromeMultiOpenForm::launchSelected);
-    connect(ui->closeButton, &QPushButton::clicked, this, &QDialog::accept);
+
+    // 双击行的动作：编辑 / 启动，记在 ini 里，下次打开还是上次的选择
+    ui->doubleClickCombo->setCurrentIndex(ChromeMultiOpen::doubleClickAction());
+    connect(ui->doubleClickCombo, &QComboBox::currentIndexChanged, this, [](int index) {
+        ChromeMultiOpen::setDoubleClickAction(index);
+    });
 
     connect(ui->changeRootButton, &QPushButton::clicked, this, &ChromeMultiOpenForm::changeDataRoot);
     connect(ui->defaultRootButton, &QPushButton::clicked, this, &ChromeMultiOpenForm::resetDataRoot);
@@ -147,9 +152,13 @@ ChromeMultiOpenForm::ChromeMultiOpenForm(QWidget *parent)
         m_selectedName = (row >= 0 && row < m_profiles.size()) ? m_profiles.at(row).name : QString();
         updateButtons();
     });
-    // 双击某一行直接进编辑（启动有单独的按钮，避免误触拉起浏览器）
-    connect(ui->profileTable, &QTableWidget::cellDoubleClicked, this,
-            [this](int row, int) { editProfile(row); });
+    // 双击行的动作跟随工具栏里的选择（默认编辑）
+    connect(ui->profileTable, &QTableWidget::cellDoubleClicked, this, [this](int row, int) {
+        if (ui->doubleClickCombo->currentIndex() == ChromeMultiOpen::DoubleClickLaunch)
+            launchProfile(row);
+        else
+            editProfile(row);
+    });
 
     reload();
 }
@@ -210,10 +219,6 @@ void ChromeMultiOpenForm::reload(const QString &selectName)
     }
 
     updateButtons();
-
-    setMessage(m_profiles.isEmpty()
-                   ? QStringLiteral("还没有任何 Chrome 多开，点「新建」创建一个。")
-                   : QStringLiteral("共 %1 个多开。").arg(int(m_profiles.size())));
 }
 
 void ChromeMultiOpenForm::updateButtons()
@@ -227,12 +232,6 @@ void ChromeMultiOpenForm::updateButtons()
     ui->launchButton->setEnabled(hasSelection);
     ui->upButton->setEnabled(hasSelection && row > 0);
     ui->downButton->setEnabled(hasSelection && row + 1 < m_profiles.size());
-}
-
-void ChromeMultiOpenForm::setMessage(const QString &text, bool warning)
-{
-    ui->messageLabel->setText(text);
-    ui->messageLabel->setStyleSheet(warning ? QString::fromLatin1(kWarningStyle) : QString());
 }
 
 bool ChromeMultiOpenForm::storeProfiles(const QList<ChromeProfile> &profiles)
@@ -285,8 +284,6 @@ void ChromeMultiOpenForm::newProfile()
         return;
 
     reload(profile.name);
-    setMessage(QStringLiteral("已创建多开「%1」，数据目录：%2")
-                   .arg(profile.name, QDir::toNativeSeparators(profile.dataDir)));
 }
 
 void ChromeMultiOpenForm::editProfile(int row)
@@ -312,7 +309,6 @@ void ChromeMultiOpenForm::editProfile(int row)
     const QString oldDir = ChromeMultiOpen::profileDataDir(original);
     const QString newDir = ChromeMultiOpen::profileDataDir(updated);
     const bool dirChanged = !ChromeMultiOpen::samePath(oldDir, newDir);
-    bool migrated = false;
 
     if (dirChanged) {
         const MigrateChoice choice = askMigrate(
@@ -335,8 +331,6 @@ void ChromeMultiOpenForm::editProfile(int row)
                     QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
                 if (retry != QMessageBox::Yes)
                     return;
-            } else {
-                migrated = true;
             }
         }
     }
@@ -347,16 +341,6 @@ void ChromeMultiOpenForm::editProfile(int row)
         return;
 
     reload(updated.name);
-
-    if (migrated) {
-        setMessage(QStringLiteral("已保存「%1」，数据已迁移到：%2")
-                       .arg(updated.name, QDir::toNativeSeparators(newDir)));
-    } else if (dirChanged) {
-        setMessage(QStringLiteral("已保存「%1」；数据没有迁移，仍留在：%2")
-                       .arg(updated.name, QDir::toNativeSeparators(oldDir)));
-    } else {
-        setMessage(QStringLiteral("已保存多开「%1」。").arg(updated.name));
-    }
 }
 
 void ChromeMultiOpenForm::duplicateSelected()
@@ -376,11 +360,6 @@ void ChromeMultiOpenForm::duplicateSelected()
         return;
 
     reload(copy.name);
-    setMessage(QStringLiteral("已复制为「%1」：参数照搬，数据目录是新的：%2%3")
-                   .arg(copy.name, QDir::toNativeSeparators(copy.dataDir),
-                        QFileInfo(copy.dataDir).isDir()
-                            ? QStringLiteral("（该目录已存在，会沿用其中的数据）")
-                            : QString()));
 }
 
 void ChromeMultiOpenForm::deleteSelected()
@@ -407,24 +386,21 @@ void ChromeMultiOpenForm::deleteSelected()
         return;
 
     reload();
-    setMessage(QStringLiteral("已删除多开「%1」，数据目录保留在：%2").arg(profile.name, dataDir));
 }
 
 void ChromeMultiOpenForm::launchSelected()
 {
-    const int row = selectedRow();
+    launchProfile(selectedRow());
+}
+
+void ChromeMultiOpenForm::launchProfile(int row)
+{
     if (row < 0 || row >= m_profiles.size())
         return;
 
-    const ChromeProfile profile = m_profiles.at(row);
     QString error;
-    if (!ChromeMultiOpen::launch(profile, &error)) {
-        setMessage(QStringLiteral("启动「%1」失败。").arg(profile.name), true);
+    if (!ChromeMultiOpen::launch(m_profiles.at(row), &error))
         QMessageBox::warning(this, windowTitle(), error);
-        return;
-    }
-
-    setMessage(QStringLiteral("已启动多开「%1」。").arg(profile.name));
 }
 
 void ChromeMultiOpenForm::moveProfile(int from, int to)
@@ -446,9 +422,6 @@ void ChromeMultiOpenForm::moveProfile(int from, int to)
         return;
 
     reload(moving);
-    setMessage(QStringLiteral("已把「%1」调到第 %2 位，托盘菜单顺序同步更新。")
-                   .arg(moving)
-                   .arg(to + 1));
 }
 
 bool ChromeMultiOpenForm::eventFilter(QObject *watched, QEvent *event)
@@ -512,11 +485,8 @@ void ChromeMultiOpenForm::applyDataRoot(const QString &newRoot)
     if (root.isEmpty())
         return;
 
-    if (ChromeMultiOpen::samePath(root, ChromeMultiOpen::dataRoot())) {
-        setMessage(QStringLiteral("数据位置没有变化：%1")
-                       .arg(QDir::toNativeSeparators(ChromeMultiOpen::dataRoot())));
-        return;
-    }
+    if (ChromeMultiOpen::samePath(root, ChromeMultiOpen::dataRoot()))
+        return;   // 位置没变，什么都不用做
 
     // 只有确实有多个开的目录会变时才值得问；全部已经在新位置下就只更新设置
     bool anyChange = false;
@@ -536,17 +506,13 @@ void ChromeMultiOpenForm::applyDataRoot(const QString &newRoot)
             QStringLiteral("已有 %1 个多开。\n\n是否把它们的数据一起迁到新位置？")
                 .arg(int(m_profiles.size())));
 
-        if (choice == MigrateChoice::Cancel) {
-            setMessage(QStringLiteral("已取消，数据位置仍是：%1")
-                           .arg(QDir::toNativeSeparators(ChromeMultiOpen::dataRoot())));
-            return;
-        }
+        if (choice == MigrateChoice::Cancel)
+            return;   // 取消：全局位置保持不变
         migrate = (choice == MigrateChoice::Migrate);
     }
 
     QList<ChromeProfile> profiles = m_profiles;
     QStringList failures;
-    int migratedCount = 0;
 
     if (migrate) {
         for (ChromeProfile &profile : profiles) {
@@ -558,12 +524,10 @@ void ChromeMultiOpenForm::applyDataRoot(const QString &newRoot)
             }
 
             QString error;
-            if (ChromeMultiOpen::migrateDataDirectory(oldDir, newDir, &error)) {
+            if (ChromeMultiOpen::migrateDataDirectory(oldDir, newDir, &error))
                 profile.dataDir = newDir;
-                ++migratedCount;
-            } else {
+            else
                 failures << QStringLiteral("「%1」：%2").arg(profile.name, error);
-            }
         }
     }
 
@@ -577,26 +541,9 @@ void ChromeMultiOpenForm::applyDataRoot(const QString &newRoot)
     reload();
 
     if (!failures.isEmpty()) {
-        setMessage(QStringLiteral("数据位置已改为 %1，但有 %2 个多开没迁移成功，仍用各自原来的目录。")
-                       .arg(QDir::toNativeSeparators(root))
-                       .arg(failures.size()),
-                   true);
         QMessageBox::warning(this, windowTitle(),
                              QStringLiteral("以下多开没有迁移，仍使用各自原来的目录：\n\n%1")
                                  .arg(failures.join(QLatin1Char('\n'))));
-        return;
-    }
-
-    if (migrate) {
-        setMessage(QStringLiteral("数据位置已改为：%1，共迁移 %2 个多开的数据。")
-                       .arg(QDir::toNativeSeparators(root))
-                       .arg(migratedCount));
-    } else if (anyChange) {
-        setMessage(QStringLiteral("数据位置已改为：%1；已有的多开继续用各自原来的目录，"
-                                  "新建的多开才会放到新位置。")
-                       .arg(QDir::toNativeSeparators(root)));
-    } else {
-        setMessage(QStringLiteral("数据位置已改为：%1").arg(QDir::toNativeSeparators(root)));
     }
 }
 

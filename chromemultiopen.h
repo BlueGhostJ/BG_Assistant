@@ -75,6 +75,16 @@ QString tempDirFor(const QString &name);              // %TEMP%\<名称>
 QList<ChromeProfile> loadProfiles();
 bool saveProfiles(const QList<ChromeProfile> &profiles);   // 写盘失败（目录只读等）返回 false
 
+// 列表里双击一行时的动作（存在 ini 的 DoubleClick 键，0 = 编辑，1 = 启动）
+enum DoubleClickAction
+{
+    DoubleClickEdit = 0,
+    DoubleClickLaunch = 1
+};
+
+int doubleClickAction();
+void setDoubleClickAction(int action);
+
 QString proxySummary(const ChromeProfile &profile);   // 列表里显示的代理说明
 QString optionSummary(const ChromeProfile &profile);  // 列表里显示的其它选项摘要
 

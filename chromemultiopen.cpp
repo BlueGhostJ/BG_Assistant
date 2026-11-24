@@ -328,6 +328,24 @@ bool ChromeMultiOpen::saveProfiles(const QList<ChromeProfile> &profiles)
     return ini.status() == QSettings::NoError;
 }
 
+int ChromeMultiOpen::doubleClickAction()
+{
+    QSettings ini(AppConfig::iniPath(), QSettings::IniFormat);
+    const int stored = ini.value(QString::fromLatin1(kGroup) + QStringLiteral("/DoubleClick"),
+                                 int(DoubleClickEdit))
+                           .toInt();
+    return stored == DoubleClickLaunch ? DoubleClickLaunch : DoubleClickEdit;
+}
+
+void ChromeMultiOpen::setDoubleClickAction(int action)
+{
+    AppConfig::ensureIniDir();
+    QSettings ini(AppConfig::iniPath(), QSettings::IniFormat);
+    ini.setValue(QString::fromLatin1(kGroup) + QStringLiteral("/DoubleClick"),
+                 action == DoubleClickLaunch ? DoubleClickLaunch : DoubleClickEdit);
+    ini.sync();
+}
+
 QString ChromeMultiOpen::proxySummary(const ChromeProfile &profile)
 {
     switch (profile.proxyMode) {
