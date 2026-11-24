@@ -488,6 +488,19 @@ void ChromeMultiOpenForm::applyDataRoot(const QString &newRoot)
     if (ChromeMultiOpen::samePath(root, ChromeMultiOpen::dataRoot()))
         return;   // 位置没变，什么都不用做
 
+    // 新位置不能落进某个多开自己的数据目录里（含正好相等）：
+    // 否则新建的多开会长在别人的数据目录里，迁移也变成「搬进自己内部」
+    for (const ChromeProfile &profile : m_profiles) {
+        const QString dir = ChromeMultiOpen::profileDataDir(profile);
+        if (!ChromeMultiOpen::isPathInside(root, dir))
+            continue;
+        QMessageBox::warning(
+            this, windowTitle(),
+            QStringLiteral("新位置不能放在多开「%1」的数据目录里面：\n\n%2\n\n请换一个位置。")
+                .arg(profile.name, QDir::toNativeSeparators(dir)));
+        return;
+    }
+
     // 只有确实有多个开的目录会变时才值得问；全部已经在新位置下就只更新设置
     bool anyChange = false;
     for (const ChromeProfile &profile : m_profiles) {

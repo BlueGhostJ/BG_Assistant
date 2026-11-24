@@ -160,6 +160,7 @@ void ChromeProfileForm::setProfile(const ChromeProfile &profile)
     const QString dataDir = profile.name.trimmed().isEmpty()
                                 ? QString()
                                 : ChromeMultiOpen::profileDataDir(profile);
+    m_originalDataDir = dataDir;
     m_dataDirEdited = !dataDir.isEmpty()
                       && !ChromeMultiOpen::samePath(dataDir, ChromeMultiOpen::dataDirFor(profile.name));
     ui->dataDirEdit->setText(dataDir.isEmpty() ? QString() : QDir::toNativeSeparators(dataDir));
@@ -272,6 +273,24 @@ void ChromeProfileForm::submit()
                              QStringLiteral("数据目录指向了一个文件，请选择文件夹：\n%1")
                                  .arg(QDir::toNativeSeparators(dataDir)));
         return;
+    }
+
+    // 迁移只能在互不包含的两个目录之间做：套在一起会越搬越深，直接拒绝
+    if (!m_originalDataDir.isEmpty() && !ChromeMultiOpen::samePath(dataDir, m_originalDataDir)) {
+        const bool targetInside = ChromeMultiOpen::isPathInside(dataDir, m_originalDataDir);
+        const bool sourceInside = ChromeMultiOpen::isPathInside(m_originalDataDir, dataDir);
+        if (targetInside || sourceInside) {
+            const QString detail =
+                targetInside
+                    ? QStringLiteral("新的数据目录不能放在原来的数据目录里面：\n\n原：%1\n新：%2\n\n请换一个目录。")
+                    : QStringLiteral("原来的数据目录在新目录里面，没法迁移：\n\n原：%1\n新：%2\n\n请换一个目录。");
+            QMessageBox::warning(this, windowTitle(),
+                                 detail.arg(QDir::toNativeSeparators(m_originalDataDir),
+                                            QDir::toNativeSeparators(dataDir)));
+            ui->dataDirEdit->setFocus();
+            ui->dataDirEdit->selectAll();
+            return;
+        }
     }
 
     for (const ChromeProfile &other : m_others) {

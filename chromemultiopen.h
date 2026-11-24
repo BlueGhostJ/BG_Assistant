@@ -92,6 +92,7 @@ QStringList buildArguments(const ChromeProfile &profile);
 
 bool isValidName(const QString &name, QString *reason);  // 名称默认作为目录名，需按文件名规则校验
 bool samePath(const QString &a, const QString &b);       // 归一化后忽略大小写比较
+bool isPathInside(const QString &child, const QString &parent);  // child 等于 parent 或在它里面
 
 // 建好数据/临时目录后以独立进程启动 chrome.exe，失败时把原因写进 error。
 bool launch(const ChromeProfile &profile, QString *error);

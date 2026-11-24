@@ -46,17 +46,7 @@ bool isSamePath(const QString &a, const QString &b)
     return QString::compare(normalizePath(a), normalizePath(b), Qt::CaseInsensitive) == 0;
 }
 
-// child 是否就是 parent 或在 parent 里面：用来拦住「把目录搬进自己内部」
-bool isInside(const QString &child, const QString &parent)
-{
-    const QString c = normalizePath(child).toLower();
-    const QString p = normalizePath(parent).toLower();
-    if (c.isEmpty() || p.isEmpty())
-        return false;
-    if (c == p)
-        return true;
-    return c.startsWith(p.endsWith(QLatin1Char('/')) ? p : p + QLatin1Char('/'));
-}
+
 
 // 递归复制目录：跨盘迁移时用，调用方保证目标不存在或是空目录
 bool copyDirectory(const QString &from, const QString &to, QString *error)
@@ -213,6 +203,19 @@ QString ChromeMultiOpen::profileDataDir(const ChromeProfile &profile)
 bool ChromeMultiOpen::samePath(const QString &a, const QString &b)
 {
     return isSamePath(a, b);
+}
+
+bool ChromeMultiOpen::isPathInside(const QString &child, const QString &parent)
+{
+    const QString c = normalizePath(child).toLower();
+    const QString p = normalizePath(parent).toLower();
+    if (c.isEmpty() || p.isEmpty())
+        return false;
+    if (c == p)
+        return true;
+
+    // 已经在一级子目录里：c 以 "p/" 开头（p 结尾带分隔符时不重复加）
+    return c.startsWith(p.endsWith(QLatin1Char('/')) ? p : p + QLatin1Char('/'));
 }
 
 QString ChromeMultiOpen::tempDirFor(const QString &name)
@@ -561,11 +564,11 @@ bool ChromeMultiOpen::migrateDataDirectory(const QString &from, const QString &t
         return true;   // 同一个目录，没什么可搬的
 
     // 互为父子时不能搬：把目录复制进它自己的子目录会越搬越深
-    if (isInside(target, source)) {
+    if (isPathInside(target, source)) {
         return fail(QStringLiteral("新目录不能放在旧目录里面：\n旧：%1\n新：%2")
                         .arg(QDir::toNativeSeparators(source), QDir::toNativeSeparators(target)));
     }
-    if (isInside(source, target)) {
+    if (isPathInside(source, target)) {
         return fail(QStringLiteral("旧目录在新目录里面，无法整体迁移：\n旧：%1\n新：%2")
                         .arg(QDir::toNativeSeparators(source), QDir::toNativeSeparators(target)));
     }

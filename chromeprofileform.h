@@ -41,6 +41,7 @@ private:
     QList<ChromeProfile> m_others;
     Mode m_mode = EditMode;
     QString m_originalName;        // 编辑前的名称，只用来决定窗口标题
+    QString m_originalDataDir;     // 编辑前的数据目录，用来拦住「新目录套在旧目录里」
     bool m_dataDirEdited = false;  // 用户手动指定过数据目录（之后不再跟着名称变化）
 
     void submit();                 // 校验通过后调用 QDialog::accept()
