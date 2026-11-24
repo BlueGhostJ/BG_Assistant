@@ -234,7 +234,7 @@
       <item row="1" column="0" colspan="5">
        <widget class="QLabel" name="dataHintLabel">
         <property name="text">
-         <string>这是「新建多开」的默认位置：每个多开会在该目录下建一个同名子目录。已经存在的多开各自记着自己的位置，改这里不会动它们，除非你在弹窗里选择迁移。</string>
+         <string>每个多开会在该目录下新建一个同名文件夹。已经存在的多开可以使用原本的位置，也可以在设置后选择迁移。</string>
         </property>
         <property name="wordWrap">
          <bool>true</bool>

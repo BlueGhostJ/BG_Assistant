@@ -10,6 +10,7 @@
 #include <QHeaderView>
 #include <QIcon>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QSignalBlocker>
 #include <QTableWidget>
 #include <QTableWidgetItem>
@@ -31,6 +32,36 @@ enum Column
 
 // 提示文字里给「失败」用的红色：与端口转发窗口保持一致
 const char *const kWarningStyle = "color: #d9534f;";
+
+// 迁移三选一：迁移 / 不迁移 / 取消（关掉窗口或按 Esc 都算取消）
+enum class MigrateChoice
+{
+    Migrate,
+    Keep,
+    Cancel
+};
+
+MigrateChoice askMigrate(QWidget *parent, const QString &title, const QString &text)
+{
+    QMessageBox box(parent);
+    box.setWindowTitle(title);
+    box.setIcon(QMessageBox::Question);
+    box.setText(text);
+
+    QPushButton *migrateButton = box.addButton(QStringLiteral("迁移"), QMessageBox::YesRole);
+    QPushButton *keepButton = box.addButton(QStringLiteral("不迁移"), QMessageBox::NoRole);
+    QPushButton *cancelButton = box.addButton(QStringLiteral("取消"), QMessageBox::RejectRole);
+
+    box.setDefaultButton(migrateButton);
+    box.setEscapeButton(cancelButton);
+    box.exec();
+
+    if (box.clickedButton() == migrateButton)
+        return MigrateChoice::Migrate;
+    if (box.clickedButton() == keepButton)
+        return MigrateChoice::Keep;
+    return MigrateChoice::Cancel;
+}
 
 } // namespace
 
@@ -284,18 +315,15 @@ void ChromeMultiOpenForm::editProfile(int row)
     bool migrated = false;
 
     if (dirChanged) {
-        const auto answer = QMessageBox::question(
+        const MigrateChoice choice = askMigrate(
             this, windowTitle(),
             QStringLiteral("这个多开的数据目录变了：\n\n旧：%1\n新：%2\n\n"
-                           "是否把旧目录里的数据迁移到新目录？\n\n"
-                           "是：搬过去，成功后删除旧目录（迁移前请先关掉这个多开的 Chrome 窗口）\n"
-                           "否：只改配置，旧目录保持原样")
-                .arg(QDir::toNativeSeparators(oldDir), QDir::toNativeSeparators(newDir)),
-            QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel, QMessageBox::Yes);
-        if (answer == QMessageBox::Cancel)
+                           "是否把旧目录里的数据迁移到新目录？")
+                .arg(QDir::toNativeSeparators(oldDir), QDir::toNativeSeparators(newDir)));
+        if (choice == MigrateChoice::Cancel)
             return;
 
-        if (answer == QMessageBox::Yes) {
+        if (choice == MigrateChoice::Migrate) {
             QString error;
             if (!ChromeMultiOpen::migrateDataDirectory(oldDir, newDir, &error)) {
                 // 搬不动（目标已有数据 / 文件被占用）时给个退路：只改配置不搬数据
@@ -500,18 +528,20 @@ void ChromeMultiOpenForm::applyDataRoot(const QString &newRoot)
         }
     }
 
-    // 已有多个开时问一句：是搬数据，还是只改「新建多开的默认位置」
+    // 已有多个开时问一句：搬数据，还是只改「新建多开的默认位置」；取消则什么都不动
     bool migrate = false;
     if (anyChange) {
-        const auto answer = QMessageBox::question(
+        const MigrateChoice choice = askMigrate(
             this, windowTitle(),
-            QStringLiteral("已有 %1 个多开。\n\n是否把它们的数据一起迁到新位置？\n\n"
-                           "是：数据目录改为「新位置\\名称」，并把已有数据搬过去"
-                           "（迁移前请先关掉这些多开的 Chrome 窗口）\n"
-                           "否：只改全局默认位置，已有的多开继续用各自原来的目录")
-                .arg(int(m_profiles.size())),
-            QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
-        migrate = (answer == QMessageBox::Yes);
+            QStringLiteral("已有 %1 个多开。\n\n是否把它们的数据一起迁到新位置？")
+                .arg(int(m_profiles.size())));
+
+        if (choice == MigrateChoice::Cancel) {
+            setMessage(QStringLiteral("已取消，数据位置仍是：%1")
+                           .arg(QDir::toNativeSeparators(ChromeMultiOpen::dataRoot())));
+            return;
+        }
+        migrate = (choice == MigrateChoice::Migrate);
     }
 
     QList<ChromeProfile> profiles = m_profiles;
