@@ -249,12 +249,12 @@
        <widget class="QPushButton" name="openRootButton">
         <property name="minimumSize">
          <size>
-          <width>64</width>
+          <width>76</width>
           <height>26</height>
          </size>
         </property>
         <property name="text">
-         <string>打开</string>
+         <string>打开目录</string>
         </property>
        </widget>
       </item>
