@@ -8,7 +8,7 @@ class QTimer;
 class QKeyEvent;
 class QPaintEvent;
 
-// 从 exe 同目录的 BGAssistant.ini 读取锁屏密码（AES 加密存储，不写注册表）。
+// 从 BGAssistant.ini 读取锁屏密码（AES 加密存储，不写注册表）。ini 位置见 appconfig.h。
 // 未设置密码时返回空串，锁屏会提示先设置密码。
 QString lockScreenPassword();
 

@@ -1,5 +1,7 @@
 #include "chromemultiopen.h"
 
+#include "appconfig.h"
+
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -10,15 +12,13 @@
 
 namespace {
 
-// 与 lockscreen.cpp 用的是同一个配置文件（exe 同目录 BGAssistant.ini），只是分组不同：
-// 锁屏在 [LockScreen]，Chrome 多开在 [ChromeMultiOpen]。
-QString iniFileName()
-{
-    return QCoreApplication::applicationDirPath()
-           + QDir::separator() + QStringLiteral("BGAssistant.ini");
-}
-
 const char kGroup[] = "ChromeMultiOpen";
+
+// 数据目录默认文件夹名。Windows 路径不区分大小写，老版本建出来的 chrome多开 也能命中。
+QString dataFolderName()
+{
+    return QStringLiteral("Chrome多开");
+}
 
 // 统一成 Qt 风格的正斜杠路径，去掉尾部多余的分隔符：
 // 这样 ini 里存的值、界面显示、拼进命令行三者只需要在显示/启动时各转一次。
@@ -114,7 +114,9 @@ bool isReservedName(const QString &name)
 
 QString ChromeMultiOpen::iniPath()
 {
-    return iniFileName();
+    // 与锁屏配置用的是同一个 ini（[LockScreen] / [ChromeMultiOpen] 两个分组），
+    // 位置规则见 appconfig.h：exe 同目录有就用它，否则放 %LOCALAPPDATA%\Programs\BGAssistant。
+    return AppConfig::iniPath();
 }
 
 QStringList ChromeMultiOpen::chromeCandidates()
@@ -162,12 +164,19 @@ QString ChromeMultiOpen::chromePath()
 
 QString ChromeMultiOpen::defaultDataRoot()
 {
-    return normalizePath(QCoreApplication::applicationDirPath() + QStringLiteral("/chrome多开"));
+    // 1) exe 同目录已经有「Chrome多开」文件夹：绿色版用法，继续用它（旧的 bat 数据也能直接接上）
+    const QString exeDirRoot =
+        QDir(QCoreApplication::applicationDirPath()).filePath(dataFolderName());
+    if (QFileInfo(exeDirRoot).isDir())
+        return normalizePath(exeDirRoot);
+
+    // 2) 没有就用程序数据目录：%LOCALAPPDATA%\Programs\BGAssistant\Chrome多开
+    return normalizePath(QDir(AppConfig::installDataDir()).filePath(dataFolderName()));
 }
 
 QString ChromeMultiOpen::dataRoot()
 {
-    QSettings ini(iniFileName(), QSettings::IniFormat);
+    QSettings ini(AppConfig::iniPath(), QSettings::IniFormat);
     const QString stored = ini.value(QString::fromLatin1(kGroup) + QStringLiteral("/DataDir"))
                                .toString()
                                .trimmed();
@@ -178,7 +187,8 @@ QString ChromeMultiOpen::dataRoot()
 
 void ChromeMultiOpen::setDataRoot(const QString &path)
 {
-    QSettings ini(iniFileName(), QSettings::IniFormat);
+    AppConfig::ensureIniDir();
+    QSettings ini(AppConfig::iniPath(), QSettings::IniFormat);
     const QString key = QString::fromLatin1(kGroup) + QStringLiteral("/DataDir");
     const QString clean = normalizePath(path);
     if (clean.isEmpty())
@@ -218,7 +228,7 @@ QList<ChromeProfile> ChromeMultiOpen::loadProfiles()
 
     const QString root = dataRoot();   // 只读一次：每个条目都读一遍 ini 没必要
 
-    QSettings ini(iniFileName(), QSettings::IniFormat);
+    QSettings ini(AppConfig::iniPath(), QSettings::IniFormat);
     ini.beginGroup(QString::fromLatin1(kGroup));
     const int count = ini.beginReadArray(QStringLiteral("Profiles"));
     for (int i = 0; i < count; ++i) {
@@ -277,7 +287,8 @@ QList<ChromeProfile> ChromeMultiOpen::loadProfiles()
 
 bool ChromeMultiOpen::saveProfiles(const QList<ChromeProfile> &profiles)
 {
-    QSettings ini(iniFileName(), QSettings::IniFormat);
+    AppConfig::ensureIniDir();
+    QSettings ini(AppConfig::iniPath(), QSettings::IniFormat);
     ini.beginGroup(QString::fromLatin1(kGroup));
 
     // 整个数组重写：改名、删除、调整顺序后不会留下旧键

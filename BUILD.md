@@ -295,6 +295,7 @@ dir D:\Programs\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
 ├── main.cpp            程序入口、托盘与菜单、锁屏 / 路由 / 端口转发 / Chrome 多开子进程分支
 ├── mainwindow.*        主窗口（预留，当前未显示）
 ├── configform.*        设置窗口（开机自启、锁屏常亮、锁屏密码）
+├── appconfig.*         配置文件位置（exe 同目录优先，否则 %LOCALAPPDATA%\Programs\BGAssistant）
 ├── lockscreen.*        神隐锁屏（全屏遮屏、盲打密码解锁）
 ├── routemanager.*      系统路由管理窗口（添加/删除路由 + 系统路由表弹窗）
 ├── routequery.*        读取 IPv4 路由表（IP Helper API + 长效路由注册表）
@@ -316,6 +317,26 @@ dir D:\Programs\Qt\6.12.0-static\lib\cmake\Qt6\Qt6Config.cmake
 ---
 
 ## 实现说明
+
+### 配置文件与默认数据目录
+
+配置文件名固定为 `BGAssistant.ini`，位置按「exe 同目录有没有这个文件」决定，**不缓存判断结果**（每次访问都看一次）：
+
+| 情况 | 用的路径 |
+| --- | --- |
+| exe 同目录已有 `BGAssistant.ini` | `exe 目录\BGAssistant.ini`（绿色版：exe + ini 一起拷走，配置跟着走） |
+| 没有 | `%LOCALAPPDATA%\Programs\BGAssistant\BGAssistant.ini` |
+
+这样 exe 放在 `Program Files` 这类没写权限的目录时也能保存设置；用户想搬走配置，把 ini 放到 exe 旁边即可自动切回绿色版。
+写配置前统一调用 `AppConfig::ensureIniDir()` 建目录（`QSettings` 只会建文件，不会建父目录）。
+
+Chrome 多开的**全局数据目录**（只影响新建的多开，每个多开自己记着绝对路径）：
+
+1. ini 里 `[ChromeMultiOpen] DataDir` 有值 → 用用户的设置；
+2. 没有 → exe 同目录已有 `Chrome多开` 文件夹就沿用它（老用户 / 老的 bat 数据直接接上）；
+3. 否则 → `%LOCALAPPDATA%\Programs\BGAssistant\Chrome多开`。
+
+Windows 路径不区分大小写，历史上建出来的 `chrome多开` 也会被 `Chrome多开` 的检查命中。
 
 ### 系统路由管理的提权方式
 

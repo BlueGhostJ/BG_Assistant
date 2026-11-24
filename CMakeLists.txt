@@ -49,6 +49,8 @@ set(PROJECT_SOURCES
         ipaddressedit.h
         elevation.cpp
         elevation.h
+        appconfig.cpp
+        appconfig.h
         aes.cpp
         aes.h
         resources.qrc

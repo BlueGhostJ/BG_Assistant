@@ -23,7 +23,9 @@
 
 ## 开始使用
 
-1. **双击 `BGAssistant.exe`**，不需要安装。首次运行会在 exe 同目录生成配置文件 `BGAssistant.ini`。
+1. **双击 `BGAssistant.exe`**，不需要安装。配置文件 `BGAssistant.ini` 的位置这样定：**exe 同目录已经有一个就用它**
+   （绿色版：exe + ini 一起拷走，配置跟着走）；没有的话首次运行会生成到
+   `%LOCALAPPDATA%\Programs\BGAssistant\BGAssistant.ini`，程序放在 `Program Files` 这类没写权限的目录也能正常保存设置。
    （程序就是单个 exe，放在任意目录都能跑；仓库里若没有现成 exe，按 [BUILD.md](BUILD.md) 自行构建。）
 2. 托盘区出现**太极图标**，**左键单击**它弹出菜单（右键也可以）。
 3. 建议先做两件事：在「设置」里勾选**开机自启**、设一个**锁屏密码**。
@@ -116,11 +118,11 @@
 
 列表顺序就是托盘菜单里的顺序：按住某一行拖动，或者用「上移 / 下移」调整，改完立即生效。
 
-**数据位置**：默认是 exe 同目录的 `chrome多开` 文件夹，新建的多开在下面有一个同名子目录：
+**数据位置**：没有指定过的话，先看 exe 同目录有没有 `Chrome多开` 文件夹——有就沿用它（绿色版习惯，旧的 bat 数据也能直接接上）；没有就用 `%LOCALAPPDATA%\Programs\BGAssistant\Chrome多开`。新建的多开在下面有一个同名子目录：
 
 ```
 BGAssistant.exe
-chrome多开\
+Chrome多开\
 ├── 工作号\        ← 「工作号」这个多开的数据
 └── 游戏号\        ← 「游戏号」这个多开的数据
 ```
@@ -229,15 +231,15 @@ chrome多开\
 
 ## 文件与注册表
 
-程序只碰这两处，其余什么都不写：
+程序只碰下面这些地方，其余什么都不写：
 
 | 内容 | 位置 | 说明 |
 | --- | --- | --- |
-| 配置文件 | exe 同目录 `BGAssistant.ini` | 锁屏密码（AES 加密后存 Base64）、是否保持屏幕常亮、Chrome 多开配置（`[ChromeMultiOpen]`） |
-| Chrome 多开数据 | 每个多开新建时记录自己的绝对路径，默认 `exe 同目录\chrome多开\<名称>\` | 各多开的登录状态；删除多开配置不会删这里，改目录时可以选择是否迁移 |
+| 配置文件 | exe 同目录 `BGAssistant.ini`；没有则用 `%LOCALAPPDATA%\Programs\BGAssistant\BGAssistant.ini` | 锁屏密码（AES 加密后存 Base64）、是否保持屏幕常亮、Chrome 多开配置（`[ChromeMultiOpen]`） |
+| Chrome 多开数据 | 每个多开新建时记录自己的绝对路径；默认放在 `Chrome多开\<名称>\`（exe 同目录已有该文件夹就用它，否则用 `%LOCALAPPDATA%\Programs\BGAssistant\Chrome多开`） | 各多开的登录状态；删除多开配置不会删这里，改目录时可以选择是否迁移 |
 | 开机自启 | `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run` | 值为 exe 绝对路径；取消勾选即删除该项 |
 
-配置文件随程序走：把 exe 和 ini 一起拷到别的机器，密码设置也会跟着过去；只拷 exe 则视为首次运行、需要重新设置密码。
+配置文件随程序走：把 exe 和 ini 一起拷到别的机器，密码设置也会跟着过去；只拷 exe 则视为首次运行——若目标目录下没有 ini，会在本机用户目录新建一个，需要重新设置密码。
 
 ---
 
@@ -255,7 +257,7 @@ chrome多开\
 先去「设置 › 锁屏密码」设一个密码，再点遮屏。
 
 **忘了遮屏密码怎么办？**
-退出程序，用记事本打开 exe 同目录的 `BGAssistant.ini`，删掉 `[LockScreen]` 下的 `Password=` 那一行（或直接删掉整个 ini），重新启动程序后再设一个新密码。删除配置文件不影响任何系统设置。
+退出程序，找到 `BGAssistant.ini`（exe 同目录有就是它，没有则在 `%LOCALAPPDATA%\Programs\BGAssistant\`），用记事本打开，删掉 `[LockScreen]` 下的 `Password=` 那一行（或直接删掉整个 ini），重新启动程序后再设一个新密码。删除配置文件不影响任何系统设置。
 
 **点「路由管理」「端口转发」弹 UAC，能不让它弹吗？**
 不能。改系统路由表、改端口转发规则都必须有管理员权限，这是 Windows 的限制。点「否」不会执行任何操作。

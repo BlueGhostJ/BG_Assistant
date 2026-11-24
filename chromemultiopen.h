@@ -52,8 +52,10 @@ struct ChromeProfile
 };
 
 // Chrome 多开的配置、目录与启动逻辑。
-// 配置写在 exe 同目录 BGAssistant.ini 的 [ChromeMultiOpen] 分组里，
-// 全局数据目录默认是 exe 同目录的 chrome多开 文件夹（和原来的 bat 习惯一致）。
+// 配置写在 BGAssistant.ini 的 [ChromeMultiOpen] 分组里（ini 位置见 appconfig.h：
+// exe 同目录有就用它，否则放 %LOCALAPPDATA%\Programs\BGAssistant）。
+// 全局数据目录：用户指定过就用指定的；没指定时，exe 同目录已有 Chrome多开 文件夹就沿用它，
+// 否则用 %LOCALAPPDATA%\Programs\BGAssistant\Chrome多开。
 namespace ChromeMultiOpen {
 
 QString iniPath();
@@ -62,7 +64,7 @@ QString iniPath();
 QString chromePath();
 QStringList chromeCandidates();
 
-QString defaultDataRoot();            // exe 同目录\chrome多开
+QString defaultDataRoot();            // exe 同目录有 Chrome多开 就用它，否则用程序数据目录下的同名文件夹
 QString dataRoot();                   // 用户指定过就用指定位置，否则用默认位置
 void setDataRoot(const QString &path); // 传空表示恢复默认
 

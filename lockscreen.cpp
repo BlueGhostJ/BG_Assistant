@@ -14,6 +14,7 @@
 
 #include "lockscreen.h"
 #include "aes.h"
+#include "appconfig.h"
 
 #include <QApplication>
 #include <QLabel>
@@ -95,11 +96,11 @@ static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lP
 }
 #endif
 
-// 配置统一存放在 exe 同目录的 BGAssistant.ini（不写注册表）。
+// 配置统一存放在 BGAssistant.ini（不写注册表）：
+// exe 同目录有就用它，否则落到 %LOCALAPPDATA%\Programs\BGAssistant，规则见 appconfig.h。
 static QString lockScreenIniPath()
 {
-    return QCoreApplication::applicationDirPath()
-           + QDir::separator() + QStringLiteral("BGAssistant.ini");
+    return AppConfig::iniPath();
 }
 
 // 锁屏密码的 AES 密钥：与易语言版常量「神隐锁屏密码加密秘钥」一致，
@@ -121,6 +122,7 @@ QString lockScreenPassword()
 
 void setLockScreenPassword(const QString &plain)
 {
+    AppConfig::ensureIniDir();
     QSettings ini(lockScreenIniPath(), QSettings::IniFormat);
     ini.setValue(QStringLiteral("LockScreen/Password"),
                  aesEncryptBase64(plain, lockScreenAesKey()));
@@ -130,6 +132,7 @@ void ensureLockScreenConfig()
 {
     // 首次启动时 ini 尚不存在：创建「无密码」的 ini 文件（密码键为空，表示尚未设置密码）。
     // 未设置密码时，锁屏会提示先设置密码（对齐原版逻辑，不再写入默认密码）。
+    AppConfig::ensureIniDir();
     QSettings ini(lockScreenIniPath(), QSettings::IniFormat);
     if (!ini.contains(QStringLiteral("LockScreen/Password")))
         ini.setValue(QStringLiteral("LockScreen/Password"), QString());
@@ -143,6 +146,7 @@ bool lockScreenKeepScreenOn()
 
 void setLockScreenKeepScreenOn(bool on)
 {
+    AppConfig::ensureIniDir();
     QSettings ini(lockScreenIniPath(), QSettings::IniFormat);
     ini.setValue(QStringLiteral("LockScreen/KeepScreenOn"), on);
 }
