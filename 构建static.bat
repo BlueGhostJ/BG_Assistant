@@ -1,55 +1,61 @@
 @echo off
 rem ============================================================
-rem é™æ€æž„å»ºï¼šç”¨é™æ€ç¼–è¯‘çš„ Qt 6.12.0 äº§å‡ºå•æ–‡ä»¶ exeï¼ˆä¸ä¾èµ–ä»»ä½• Qt DLLï¼‰ï¼Œ
-rem           ç¼–è¯‘å®ŒæˆåŽç”¨ tools\upx.exe åŽ‹ç¼©ï¼ŒåŽ‹ç¼©äº§ç‰©æ”¾åˆ° release\ã€‚
+rem ¾²Ì¬¹¹½¨£ºÓÃ¾²Ì¬±àÒëµÄ Qt 6.12.0 ²ú³öµ¥ÎÄ¼þ exe£¨²»ÒÀÀµÈÎºÎ Qt DLL£©£¬
+rem           ±àÒëÍê³ÉºóÓÃ tools\upx.exe Ñ¹Ëõ£¬Ñ¹Ëõ²úÎï·Åµ½ release\¡£
 rem
-rem å‰ç½®æ¡ä»¶ï¼šå…ˆæŒ‰ BUILD.mdã€Œç¼–è¯‘é™æ€ Qtã€ä¸€èŠ‚æŠŠé™æ€ Qt è£…åˆ° QT_STATICï¼Œ
-rem           æ²¡è£…è¿‡å°±æŠŠä¸‹é¢è¿™è¡Œæ”¹æˆä½ çš„å®žé™…å®‰è£…ç›®å½•ã€‚
+rem Ç°ÖÃÌõ¼þ£ºÏÈ°´ BUILD.md¡¸±àÒë¾²Ì¬ Qt¡¹Ò»½Ú°Ñ¾²Ì¬ Qt ×°µ½ QT_STATIC£¬
+rem           Ã»×°¹ý¾Í°ÑÏÂÃæÕâÐÐ¸Ä³ÉÄãµÄÊµ¼Ê°²×°Ä¿Â¼¡£
 rem
-rem äº§ç‰©ï¼šrelease\BGAssistant.exeï¼ˆUPX åŽ‹ç¼©ï¼Œæ–‡ä»¶åä¸å˜ï¼Œå•æ–‡ä»¶ç›´æŽ¥åˆ†å‘ï¼‰
-rem       build\BGAssistant.exe ä¿ç•™æœªåŽ‹ç¼©çš„åŽŸä»¶ï¼Œæ–¹ä¾¿æŽ’æŸ¥é—®é¢˜
+rem ²úÎï£ºrelease\BGAssistant.exe£¨UPX Ñ¹Ëõ£¬ÎÄ¼þÃû²»±ä£¬µ¥ÎÄ¼þÖ±½Ó·Ö·¢£©
+rem       build\BGAssistant.exe ±£ÁôÎ´Ñ¹ËõµÄÔ­¼þ£¬·½±ãÅÅ²éÎÊÌâ
 rem
-rem æ³¨æ„ï¼šUPX åŽ‹è¿‡çš„ exe å¶å°”ä¼šè¢«æ€æ¯’è½¯ä»¶è¯¯æŠ¥ï¼Œåˆ†å‘å‰å»ºè®®å…ˆè¿‡ä¸€éæ€è½¯ã€‚
+rem ×¢Òâ£ºUPX Ñ¹¹ýµÄ exe Å¼¶û»á±»É±¶¾Èí¼þÎó±¨£¬·Ö·¢Ç°½¨ÒéÏÈ¹ýÒ»±éÉ±Èí¡£
 rem
-rem æœ¬æ–‡ä»¶æ˜¯ UTF-8 ç¼–ç ï¼Œä¸‹é¢è¿™å¥è®©æŽ§åˆ¶å°æŒ‰ UTF-8 è¾“å‡ºï¼Œä¸­æ–‡æ‰ä¸ä¼šä¹±ç ã€‚
+rem ¡¾±àÂë¡¿±¾ÎÄ¼þ±ØÐë±£´æÎª GBK£¨ANSI£©±àÂë£¬ÇÒÑÏ½û¼ÓÈë chcp 65001¡£
+rem         Ô­Òò£ºcmd ÔÚ¶ÁÈ¡Åú´¦Àí¹ý³ÌÖÐÇÐ»»´úÂëÒ³»á¶ªÊ§ÎÄ¼þ¶ÁÈ¡Î»ÖÃ£¬
+rem         µ¼ÖÂºóÃæµÄÐÐ±»½Ø¶Ï³ÉÂÒÂëÃüÁîÖ´ÐÐ£¨±íÏÖÎª±¨ 'PX' ²»ÊÇÄÚ²¿ÃüÁîÖ®Àà£©¡£
+rem         ÈôÓÃ VS Code ±à¼­£¬ÇëÈ·ÈÏÓÒÏÂ½ÇÏÔÊ¾ GBK ¶ø²»ÊÇ UTF-8¡£
 rem ============================================================
-chcp 65001 >nul
 setlocal
 
-rem ä»¥è„šæœ¬æ‰€åœ¨ç›®å½•ä¸ºå·¥ä½œç›®å½•ï¼šä»Žå¿«æ·æ–¹å¼æˆ–åˆ«å¤„è°ƒç”¨æ—¶ä¹Ÿä¸ä¼šè·‘é”™åœ°æ–¹
+rem ÒÔ½Å±¾ËùÔÚÄ¿Â¼Îª¹¤×÷Ä¿Â¼£º´Ó¿ì½Ý·½Ê½»ò±ð´¦µ÷ÓÃÊ±Ò²²»»áÅÜ´íµØ·½
 cd /d "%~dp0"
 
 set "QT_STATIC=D:\Programs\Qt\6.12.0-static"
 set "MINGW_BIN=D:\Programs\Qt\Tools\mingw1510_64\bin"
 set "CMAKE_BIN=D:\Programs\Qt\Tools\CMake_64\bin"
-set "UPX=%~dp0tools\upx.exe"
+rem ±äÁ¿Ãû²»ÄÜÓÃ UPX£ºUPX ×ÔÉí»á¶ÁÈ¡ÃûÎª UPX µÄ»·¾³±äÁ¿£¬Öµ²»ÊÇºÏ·¨ÅäÖÃÊ±
+rem Ö±½Ó±¨ "invalid string ... in environment variable 'UPX'" ²¢¾Ü¾øÑ¹Ëõ¡£
+rem Ë³ÊÖ°ÑÍâ²¿¿ÉÄÜÒÅÁôµÄ UPX ±äÁ¿Çåµô£¬±ÜÃâ¼Ì³ÐÀ´µÄÖµ¸ÉÈÅ±¾´ÎÑ¹Ëõ¡£
+set "UPX="
+set "UPX_EXE=%~dp0tools\upx.exe"
 
 if not exist "%QT_STATIC%\lib\cmake\Qt6\Qt6Config.cmake" (
-    echo [é”™è¯¯] æ²¡æ‰¾åˆ°é™æ€ Qtï¼š%QT_STATIC%
+    echo [´íÎó] Ã»ÕÒµ½¾²Ì¬ Qt£º%QT_STATIC%
     echo.
-    echo è¯·å…ˆæŒ‰ BUILD.mdã€Œç¼–è¯‘é™æ€ Qtã€ä¸€èŠ‚ç”Ÿæˆé™æ€ Qt 6.12.0ï¼Œ
-    echo æˆ–ä¿®æ”¹æœ¬æ–‡ä»¶é‡Œçš„ QT_STATIC å˜é‡æŒ‡å‘å·²æœ‰çš„é™æ€ Qt ç›®å½•ã€‚
+    echo ÇëÏÈ°´ BUILD.md¡¸±àÒë¾²Ì¬ Qt¡¹Ò»½ÚÉú³É¾²Ì¬ Qt 6.12.0£¬
+    echo »òÐÞ¸Ä±¾ÎÄ¼þÀïµÄ QT_STATIC ±äÁ¿Ö¸ÏòÒÑÓÐµÄ¾²Ì¬ Qt Ä¿Â¼¡£
     pause
     exit /b 1
 )
 
-if not exist "%UPX%" (
-    echo [é”™è¯¯] æ²¡æ‰¾åˆ° UPXï¼š%UPX%
+if not exist "%UPX_EXE%" (
+    echo [´íÎó] Ã»ÕÒµ½ UPX£º%UPX_EXE%
     echo.
-    echo è¯·æŠŠ upx.exe æ”¾åˆ°æœ¬è„šæœ¬åŒçº§çš„ tools\ ç›®å½•ä¸‹ã€‚
+    echo Çë°Ñ upx.exe ·Åµ½±¾½Å±¾Í¬¼¶µÄ tools\ Ä¿Â¼ÏÂ¡£
     pause
     exit /b 1
 )
 
-rem ä¸ä¾èµ–ç³»ç»Ÿ PATHï¼šMinGW ä¸Ž CMake çš„ç›®å½•ä¸´æ—¶å‰ç½®ï¼Œæ”¹å®ŒçŽ¯å¢ƒå˜é‡æ²¡é‡å¼€èµ„æºç®¡ç†å™¨ä¹Ÿèƒ½è·‘
+rem ²»ÒÀÀµÏµÍ³ PATH£ºMinGW Óë CMake µÄÄ¿Â¼ÁÙÊ±Ç°ÖÃ£¬¸ÄÍê»·¾³±äÁ¿Ã»ÖØ¿ª×ÊÔ´¹ÜÀíÆ÷Ò²ÄÜÅÜ
 set "PATH=%MINGW_BIN%;%CMAKE_BIN%;%PATH%"
 
-rem é™æ€æž„å»ºç”¨ build\ï¼ŒåŠ¨æ€æž„å»ºç”¨ build-dynamic\ï¼Œä¸¤è€…äº’ä¸å¹²æ‰°
-rem release\ æ¯æ¬¡æ•´ä¸ªé‡å»ºï¼Œé¿å…æ®‹ç•™ä¸Šä¸€æ¬¡çš„æ—§äº§ç‰©
+rem ¾²Ì¬¹¹½¨ÓÃ build\£¬¶¯Ì¬¹¹½¨ÓÃ build-dynamic\£¬Á½Õß»¥²»¸ÉÈÅ
+rem release\ Ã¿´ÎÕû¸öÖØ½¨£¬±ÜÃâ²ÐÁôÉÏÒ»´ÎµÄ¾É²úÎï
 rmdir /s /q build 2>nul
 rmdir /s /q release 2>nul
 
-rem ç›®å½•è¢«å ç”¨ï¼ˆæ¯”å¦‚ build\BGAssistant.exe è¿˜è·‘ç€ï¼‰æ—¶ rmdir ä¼šå¤±è´¥ï¼Œç›´æŽ¥åœä¸‹æ¥è¯´æ¸…æ¥š
+rem Ä¿Â¼±»Õ¼ÓÃ£¨±ÈÈç build\BGAssistant.exe »¹ÅÜ×Å£©Ê± rmdir »áÊ§°Ü£¬Ö±½ÓÍ£ÏÂÀ´ËµÇå³þ
 if exist build goto :locked
 if exist release goto :locked
 
@@ -63,12 +69,12 @@ if not exist build\BGAssistant.exe goto :fail
 
 if not exist release mkdir release
 
-rem -o æŠŠåŽ‹ç¼©ç»“æžœç›´æŽ¥å†™åˆ° release\ï¼šbuild\ é‡Œçš„åŽŸä»¶ä¿æŒæœªåŽ‹ç¼©ï¼Œ
-rem å‡ºé—®é¢˜æ—¶å¯ä»¥ç›´æŽ¥æ‹¿å®ƒå¯¹ç…§ã€‚é™æ€é“¾æŽ¥çš„ exe å¾ˆå¤§ï¼Œ--best è¦è·‘ä¸€ä¸¤åˆ†é’Ÿï¼Œåˆ«ä»¥ä¸ºå¡æ­»äº†ã€‚
+rem -o °ÑÑ¹Ëõ½á¹ûÖ±½ÓÐ´µ½ release\£ºbuild\ ÀïµÄÔ­¼þ±£³ÖÎ´Ñ¹Ëõ£¬
+rem ³öÎÊÌâÊ±¿ÉÒÔÖ±½ÓÄÃËü¶ÔÕÕ¡£¾²Ì¬Á´½ÓµÄ exe ºÜ´ó£¬--best ÒªÅÜÒ»Á½·ÖÖÓ£¬±ðÒÔÎª¿¨ËÀÁË¡£
 echo.
-echo æ­£åœ¨ç”¨ UPX åŽ‹ç¼© build\BGAssistant.exe ...
+echo ÕýÔÚÓÃ UPX Ñ¹Ëõ build\BGAssistant.exe ...
 pushd build
-"%UPX%" --best -o "..\release\BGAssistant.exe" BGAssistant.exe
+"%UPX_EXE%" --best -o "..\release\BGAssistant.exe" BGAssistant.exe
 set "UPX_RESULT=%errorlevel%"
 popd
 if not "%UPX_RESULT%"=="0" goto :fail
@@ -78,28 +84,28 @@ for %%A in (build\BGAssistant.exe) do set "RAW=%%~zA"
 for %%A in (release\BGAssistant.exe) do set "PACKED=%%~zA"
 
 echo.
-echo å®Œæˆï¼šrelease\BGAssistant.exe
-echo       æœªåŽ‹ç¼© %RAW% å­—èŠ‚  -^>  åŽ‹ç¼©åŽ %PACKED% å­—èŠ‚
+echo Íê³É£ºrelease\BGAssistant.exe
+echo       Î´Ñ¹Ëõ %RAW% ×Ö½Ú  -^>  Ñ¹Ëõºó %PACKED% ×Ö½Ú
 pause
 exit /b 0
 
 :fail
 echo.
-echo [å¤±è´¥] æž„å»ºæˆ–åŽ‹ç¼©æ²¡æœ‰é€šè¿‡ï¼Œè¯·çœ‹ä¸Šé¢çš„æŠ¥é”™ä¿¡æ¯ã€‚
-echo        è‹¥æ˜¯ UPX æŠ¥é”™ï¼Œå¸¸è§åŽŸå› ï¼š
-echo          1. exe è¿˜åœ¨æ‰˜ç›˜é‡Œè¿è¡Œï¼ˆå³é”®å›¾æ ‡ - é€€å‡ºï¼‰
-echo          2. è¢«æ€æ¯’è½¯ä»¶é”å®šæˆ–æ‹¦æˆª
-echo          3. æŠ¥ GUARD_CF ä¸æ”¯æŒï¼ŒæŠŠå‘½ä»¤åŠ ä¸Š --force é‡è·‘ï¼ˆä¼šè¿žå¸¦å…³æŽ‰ CFGï¼‰
-echo        release\ é‡Œå¯èƒ½æ˜¯ç©ºçš„ï¼Œåˆ«ç›´æŽ¥æ‹¿åŽ»åˆ†å‘ã€‚
+echo [Ê§°Ü] ¹¹½¨»òÑ¹ËõÃ»ÓÐÍ¨¹ý£¬Çë¿´ÉÏÃæµÄ±¨´íÐÅÏ¢¡£
+echo        ÈôÊÇ UPX ±¨´í£¬³£¼ûÔ­Òò£º
+echo          1. exe »¹ÔÚÍÐÅÌÀïÔËÐÐ£¨ÓÒ¼üÍ¼±ê - ÍË³ö£©
+echo          2. ±»É±¶¾Èí¼þËø¶¨»òÀ¹½Ø
+echo          3. ±¨ GUARD_CF ²»Ö§³Ö£¬°ÑÃüÁî¼ÓÉÏ --force ÖØÅÜ£¨»áÁ¬´ø¹Øµô CFG£©
+echo        release\ Àï¿ÉÄÜÊÇ¿ÕµÄ£¬±ðÖ±½ÓÄÃÈ¥·Ö·¢¡£
 pause
 exit /b 1
 
 :locked
 echo.
-echo [é”™è¯¯] build\ æˆ– release\ åˆ ä¸æŽ‰ï¼Œå¤šåŠæ˜¯æœ‰ç¨‹åºæ­£åœ¨ä½¿ç”¨ï¼š
-echo        1. æ‰˜ç›˜é‡Œçš„ BGAssistant.exe è¿˜æ²¡é€€å‡ºï¼ˆå³é”®å›¾æ ‡ - é€€å‡ºï¼‰
-echo        2. èµ„æºç®¡ç†å™¨ / ç¼–è¾‘å™¨æ­£æ‰“å¼€è¯¥ç›®å½•
-echo        3. æ€æ¯’è½¯ä»¶æ­£åœ¨æ‰«æä¸Šä¸€æ¬¡ç”Ÿæˆçš„ exe
-echo        å¤„ç†å®ŒåŽé‡è·‘æœ¬è„šæœ¬ã€‚
+echo [´íÎó] build\ »ò release\ É¾²»µô£¬¶à°ëÊÇÓÐ³ÌÐòÕýÔÚÊ¹ÓÃ£º
+echo        1. ÍÐÅÌÀïµÄ BGAssistant.exe »¹Ã»ÍË³ö£¨ÓÒ¼üÍ¼±ê - ÍË³ö£©
+echo        2. ×ÊÔ´¹ÜÀíÆ÷ / ±à¼­Æ÷Õý´ò¿ª¸ÃÄ¿Â¼
+echo        3. É±¶¾Èí¼þÕýÔÚÉ¨ÃèÉÏÒ»´ÎÉú³ÉµÄ exe
+echo        ´¦ÀíÍêºóÖØÅÜ±¾½Å±¾¡£
 pause
 exit /b 1
